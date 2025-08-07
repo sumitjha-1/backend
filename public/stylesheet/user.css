@@ -76,7 +76,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;
-}
+} 
 
 .sidebar ul { 
   list-style: none; 
@@ -571,3 +571,30 @@ button:hover {
   }
 }
 
+/* Add to user.css if preferred */
+.sort-filter {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  height: 38px;
+  min-width: 120px;
+  background-color: #fff;
+}
+
+.export-btn {
+  background: #17a2b8;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  margin-left: 10px;
+}
+
+.export-btn:hover {
+  background: #138496;
+  transform: translateY(-1px);
+}

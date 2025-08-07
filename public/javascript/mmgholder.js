@@ -1,3 +1,4 @@
+
 window.itemOptions = window.itemOptions || {
   Electronics: ['Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector'],
   Stationery: ['Notebook', 'Pen', 'Pencil', 'Stapler', 'Highlighter', 'Sticky Notes'],
@@ -5,17 +6,18 @@ window.itemOptions = window.itemOptions || {
   Tools: ['Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape'],
   Cleaning: ['Broom', 'Mop', 'Dustpan', 'Cleaning Cloth', 'Disinfectant Spray', 'Trash Bags'],
   Miscellaneous: ['Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox']
-};
+};// Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize the dashboard
+  // Setup all components
   setupNavigation();
   setupProfilePanel();
   setupStockForm();
   setupApproveModal();
   setupRejectModal();
+  setupRequestForm();
   setupEventListeners();
   
-  // Set today's date as default in date filters
+  // Set default date filters to today
   const today = new Date().toISOString().split('T')[0];
   document.querySelectorAll('.date-filter').forEach(filter => {
     filter.value = today;
@@ -24,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load initial data
   loadInitialData();
 
-  // Set first tab as active
+  // Activate first tab
   showSection('stockList');
   document.querySelector('.sidebar li').classList.add('active');
 });
@@ -42,22 +44,18 @@ let currentUser = window.userData || {
 
 let currentEditingStockId = null;
 
-// Setup functions
-function setupNavigation() {
-  // Hamburger menu toggle
-  document.getElementById('hamburger').addEventListener('click', toggleSidebar);
+// ======================
+// SETUP FUNCTIONS
+// ======================
 
-  // Tab navigation
+function setupNavigation() {
+  document.getElementById('hamburger').addEventListener('click', toggleSidebar);
   document.querySelectorAll('.sidebar li').forEach(item => {
     item.addEventListener('click', function() {
       const target = this.getAttribute('data-target');
       showSection(target);
-      
-      // Update active tab
       document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
       this.classList.add('active');
-      
-      // Close sidebar on mobile
       if (window.innerWidth < 768) {
         document.getElementById('sidebar').style.display = 'none';
         document.querySelector('.content').classList.remove('with-sidebar');
@@ -67,17 +65,12 @@ function setupNavigation() {
 }
 
 function setupProfilePanel() {
-  // Profile button
   document.getElementById('profileBtn').addEventListener('click', function() {
     document.getElementById('profilePanel').classList.add('open');
   });
-
-  // Close profile panel
   document.getElementById('closeProfile').addEventListener('click', function() {
     document.getElementById('profilePanel').classList.remove('open');
   });
-
-  // Edit profile
   document.getElementById('editProfile').addEventListener('click', function() {
     document.querySelectorAll('.profile-fields input').forEach(input => {
       input.disabled = false;
@@ -85,11 +78,7 @@ function setupProfilePanel() {
     document.getElementById('saveProfile').style.display = 'inline-block';
     this.style.display = 'none';
   });
-
-  // Save profile
   document.getElementById('saveProfile').addEventListener('click', saveProfile);
-
-  // Logout
   document.getElementById('logoutBtn').addEventListener('click', function() {
     if (confirm('Are you sure you want to logout?')) {
       window.location.href = '/logout';
@@ -97,33 +86,118 @@ function setupProfilePanel() {
   });
 }
 
+function setupRequestForm() {
+  const toggleRequestForm = document.getElementById('toggleRequestForm');
+  if (toggleRequestForm) {
+    toggleRequestForm.addEventListener('click', function() {
+      document.getElementById('requestFormModal').style.display = 'block';
+    });
+  }
+  
+  document.getElementById('closeRequestForm').addEventListener('click', function() {
+    document.getElementById('requestFormModal').style.display = 'none';
+  });
+  
+  document.getElementById('cancelRequest').addEventListener('click', function() {
+    document.getElementById('requestFormModal').style.display = 'none';
+  });
+  
+  const itemTypeSelect = document.getElementById('itemType');
+  if (itemTypeSelect) {
+    itemTypeSelect.addEventListener('change', function() {
+      const type = this.value;
+      const itemNameSelect = document.getElementById('itemName');
+      itemNameSelect.innerHTML = '<option value="">--Select Item--</option>';
+      if (type && window.itemOptions[type]) {
+        window.itemOptions[type].forEach(item => {
+          const option = document.createElement('option');
+          option.value = item;
+          option.textContent = item;
+          itemNameSelect.appendChild(option);
+        });
+      }
+    });
+  }
+  
+  const requestForm = document.getElementById('requestItemForm');
+  if (requestForm) {
+    requestForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const itemName = document.getElementById('itemName').value.trim();
+      const type = document.getElementById('itemType').value.trim();
+      const quantity = parseInt(document.getElementById('itemQty').value);
+      
+      if (!itemName || !type || isNaN(quantity) || quantity < 1) {
+        showNotification('Please fill all fields with valid values', 'error');
+        return;
+      }
+      
+      if (!window.itemOptions[type] || !window.itemOptions[type].includes(itemName)) {
+        showNotification(`"${itemName}" is not a valid item for type "${type}"`, 'error');
+        return;
+      }
+      
+      const formData = {
+        itemName,
+        type,
+        quantity
+      };
+      
+      try {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+        
+        const response = await fetch('/api/request-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to submit request');
+        }
+        
+        showNotification(`Request submitted successfully for ${quantity} ${itemName}(s)`);
+        this.reset();
+        document.getElementById('requestFormModal').style.display = 'none';
+        loadMyRequests();
+        loadRequests();
+      } catch (err) {
+        console.error('Request submission error:', err);
+        showNotification(err.message || 'Failed to submit request', 'error');
+      }
+    });
+  }
+}
+
 function setupStockForm() {
-  // Toggle stock form
   document.getElementById('toggleStockForm').addEventListener('click', function() {
     currentEditingStockId = null;
     document.getElementById('stockItemForm').reset();
     document.getElementById('stockItemName').innerHTML = '<option value="">--Select Type First--</option>';
     document.getElementById('stockFormModal').style.display = 'block';
   });
-
-  // Close stock form
+  
   document.getElementById('closeStockForm').addEventListener('click', function() {
     document.getElementById('stockFormModal').style.display = 'none';
   });
-
-  // Cancel stock form
+  
   document.getElementById('cancelStock').addEventListener('click', function() {
     document.getElementById('stockFormModal').style.display = 'none';
   });
-
-  // Dynamic item selection for stock form - fixed version
+  
   const typeSelect = document.getElementById('stockType');
   const itemNameSelect = document.getElementById('stockItemName');
-
+  
   typeSelect.addEventListener('change', function() {
     const type = this.value;
     itemNameSelect.innerHTML = '<option value="">--Select Item--</option>';
-    
     if (type && window.itemOptions[type]) {
       window.itemOptions[type].forEach(item => {
         const option = document.createElement('option');
@@ -133,171 +207,165 @@ function setupStockForm() {
       });
     }
   });
-
-  // Submit stock form
-  document.getElementById('stockItemForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
   
-  const ledgerNo = this.elements.ledger.value.trim();
-  if (!/^\d+$/.test(ledgerNo)) {
-    showNotification('Ledger number must contain numbers only', 'error');
-    return;
-  }
-
-  const formData = {
-    ledgerNo: ledgerNo,
-    name: this.elements.item.value,
-    type: this.elements.type.value,
-    quantity: parseInt(this.elements.quantity.value),
-    department: 'MMG'
-  };
-
-  try {
-    let endpoint = '/api/stock';
-    let method = 'POST';
+  document.getElementById('stockItemForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const ledgerNo = this.elements.ledger.value.trim();
     
-    if (currentEditingStockId) {
-      endpoint = `/api/stock/${currentEditingStockId}`;
-      method = 'PUT';
+    if (!/^\d+$/.test(ledgerNo)) {
+      showNotification('Ledger number must contain numbers only', 'error');
+      return;
     }
-
-    const response = await fetch(endpoint, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-      credentials: 'include' // Important for session cookies
-    });
-
-    // First check if response is HTML (error page)
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.indexOf('text/html') !== -1) {
-      const html = await response.text();
-      console.error('Received HTML instead of JSON:', html);
-      throw new Error('Server returned HTML error page');
-    }
-
-    const data = await response.json();
     
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to save stock item');
-    }
-
-    showNotification(currentEditingStockId ? 'Stock item updated successfully' : 'Stock item added successfully');
-    this.reset();
-    document.getElementById('stockFormModal').style.display = 'none';
+    const formData = {
+      ledgerNo: ledgerNo,
+      name: this.elements.item.value,
+      type: this.elements.type.value,
+      quantity: parseInt(this.elements.quantity.value),
+      department: this.elements.department.value
+    };
     
-    // Reload stock
-    loadStockItems();
-  } catch (err) {
-    console.error('Error saving stock item:', err);
-    showNotification(err.message || 'Failed to save stock item', 'error');
-  }
-});}
+    try {
+      let endpoint = '/api/add-stock';
+      let method = 'POST';
+      
+      if (currentEditingStockId) {
+        endpoint = `/api/stock/${currentEditingStockId}`;
+        method = 'PUT';
+      }
+      
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+        credentials: 'include'
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.indexOf('text/html') !== -1) {
+        const html = await response.text();
+        console.error('Received HTML instead of JSON:', html);
+        throw new Error('Server returned HTML error page');
+      }
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save stock item');
+      }
+      
+      showNotification(currentEditingStockId ? 'Stock item updated successfully' : 'Stock item added successfully');
+      this.reset();
+      document.getElementById('stockFormModal').style.display = 'none';
+      loadStockItems();
+    } catch (err) {
+      console.error('Error saving stock item:', err);
+      showNotification(err.message || 'Failed to save stock item', 'error');
+    }
+  });
+}
 
 function setupApproveModal() {
-  // Close approve modal
   document.getElementById('closeApproveModal').addEventListener('click', function() {
     document.getElementById('approveModal').style.display = 'none';
   });
-
-  // Cancel approve modal
+  
   document.getElementById('cancelApprove').addEventListener('click', function() {
     document.getElementById('approveModal').style.display = 'none';
   });
-
-  // Submit approve form
+  
   document.getElementById('approveForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
     const formData = {
       requestId: this.elements.requestId.value,
-      ledgerNo: this.elements.ledgerNo.value
+      ledgerNo: this.elements.ledgerNo.value,
+      approvedBy: currentUser._id
     };
-
+    
     try {
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Approving...';
+      
       const response = await fetch('/api/mmg-approve-request', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        showNotification('Request approved successfully');
-        document.getElementById('approveModal').style.display = 'none';
-        
-        // Reload data
-        await Promise.all([loadRequests(), loadApprovedItems(), loadStockItems()]);
-      } else {
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+      
+      if (!response.ok) {
         const error = await response.json();
-        showNotification(error.error, 'error');
+        throw new Error(error.error || 'Failed to approve request');
       }
+      
+      showNotification('Request approved successfully');
+      document.getElementById('approveModal').style.display = 'none';
+      await Promise.all([loadRequests(), loadApprovedItems(), loadStockItems()]);
     } catch (err) {
       console.error('Error approving request:', err);
-      showNotification('Failed to approve request', 'error');
+      showNotification(err.message || 'Failed to approve request', 'error');
     }
   });
 }
 
 function setupRejectModal() {
-  // Close reject modal
   document.getElementById('closeRejectModal').addEventListener('click', function() {
     document.getElementById('rejectModal').style.display = 'none';
   });
-
-  // Cancel reject modal
+  
   document.getElementById('cancelReject').addEventListener('click', function() {
     document.getElementById('rejectModal').style.display = 'none';
   });
-
-  // Submit reject form
+  
   document.getElementById('rejectForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
     const formData = {
       requestId: this.elements.requestId.value,
-      reason: this.elements.reason.value
+      reason: this.elements.reason.value,
+      rejectedBy: currentUser._id
     };
-
+    
     try {
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Rejecting...';
+      
       const response = await fetch('/api/reject-request', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        showNotification('Request rejected successfully');
-        document.getElementById('rejectModal').style.display = 'none';
-        loadRequests();
-      } else {
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+      
+      if (!response.ok) {
         const error = await response.json();
-        showNotification(error.error, 'error');
+        throw new Error(error.error || 'Failed to reject request');
       }
+      
+      showNotification('Request rejected successfully');
+      document.getElementById('rejectModal').style.display = 'none';
+      loadRequests();
     } catch (err) {
       console.error('Error rejecting request:', err);
-      showNotification('Failed to reject request', 'error');
+      showNotification(err.message || 'Failed to reject request', 'error');
     }
   });
 }
 
 function setupEventListeners() {
-  // Filter buttons
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const target = this.getAttribute('data-target');
       filterTable(target);
     });
   });
-
-  // Search inputs (on Enter key)
+  
   document.querySelectorAll('.search-input').forEach(input => {
     input.addEventListener('keyup', function(e) {
       if (e.key === 'Enter') {
@@ -309,8 +377,7 @@ function setupEventListeners() {
       }
     });
   });
-
-  // Close modals when clicking outside
+  
   window.addEventListener('click', function(e) {
     if (e.target === document.getElementById('stockFormModal')) {
       document.getElementById('stockFormModal').style.display = 'none';
@@ -321,13 +388,19 @@ function setupEventListeners() {
     if (e.target === document.getElementById('rejectModal')) {
       document.getElementById('rejectModal').style.display = 'none';
     }
+    if (e.target === document.getElementById('requestFormModal')) {
+      document.getElementById('requestFormModal').style.display = 'none';
+    }
     if (e.target === document.getElementById('profilePanel')) {
       document.getElementById('profilePanel').classList.remove('open');
     }
   });
 }
 
-// Core functions
+// ======================
+// UTILITY FUNCTIONS
+// ======================
+
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
@@ -335,21 +408,21 @@ function toggleSidebar() {
 }
 
 function showSection(sectionId) {
-  // Hide all sections
   document.querySelectorAll('.tab-content').forEach(section => {
     section.classList.remove('active');
   });
-  
-  // Show selected section
   document.getElementById(sectionId).classList.add('active');
-
-  // Load data for the section
+  
+  // Load data for the active section
   switch(sectionId) {
     case 'stockList':
       loadStockItems();
       break;
     case 'requestList':
       loadRequests();
+      break;
+    case 'myRequests':
+      loadMyRequests();
       break;
     case 'approvedList':
       loadApprovedItems();
@@ -360,6 +433,9 @@ function showSection(sectionId) {
     case 'notificationList':
       loadNotifications();
       break;
+    case 'myStock':
+      loadMyStock();
+      break;
   }
 }
 
@@ -368,9 +444,11 @@ async function loadInitialData() {
     await Promise.all([
       loadStockItems(),
       loadRequests(),
+      loadMyRequests(),
       loadApprovedItems(),
       loadReturnItems(),
-      loadNotifications()
+      loadNotifications(),
+      loadMyStock()
     ]);
   } catch (error) {
     console.error('Error loading initial data:', error);
@@ -378,7 +456,20 @@ async function loadInitialData() {
   }
 }
 
-// Data fetching functions
+function showNotification(message, type = 'success') {
+  const toast = document.getElementById('notificationToast');
+  toast.textContent = message;
+  toast.className = `notification-toast ${type}`;
+  toast.style.display = 'block';
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 3000);
+}
+
+// ======================
+// DATA FETCHING FUNCTIONS
+// ======================
+
 async function fetchStockItems() {
   try {
     const response = await fetch('/api/stock?department=MMG');
@@ -397,6 +488,17 @@ async function fetchRequests() {
     return await response.json();
   } catch (error) {
     console.error('Error fetching requests:', error);
+    return [];
+  }
+}
+
+async function fetchMyRequests() {
+  try {
+    const response = await fetch('/api/my-requests');
+    if (!response.ok) throw new Error('Failed to fetch my requests');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching my requests:', error);
     return [];
   }
 }
@@ -434,7 +536,21 @@ async function fetchNotifications() {
   }
 }
 
-// Data loading functions
+async function fetchMyStock() {
+  try {
+    const response = await fetch('/api/my-stock');
+    if (!response.ok) throw new Error('Failed to fetch my stock items');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching my stock items:', error);
+    return [];
+  }
+}
+
+// ======================
+// DATA LOADING FUNCTIONS
+// ======================
+
 async function loadStockItems() {
   try {
     const stockItems = await fetchStockItems();
@@ -454,6 +570,22 @@ async function loadRequests() {
     console.error('Error loading requests:', err);
     document.getElementById('requestListError').textContent = 'Error loading requests';
     document.getElementById('requestListError').style.display = 'block';
+  }
+}
+
+async function loadMyRequests() {
+  try {
+    const requests = await fetchMyRequests();
+    renderMyRequests(requests);
+  } catch (err) {
+    console.error('Error loading my requests:', err);
+    const errorElement = document.getElementById('myRequestsError');
+    if (errorElement) {
+      errorElement.textContent = 'Error loading my requests';
+      errorElement.style.display = 'block';
+    } else {
+      showNotification('Error loading my requests', 'error');
+    }
   }
 }
 
@@ -490,13 +622,27 @@ async function loadNotifications() {
   }
 }
 
-// Render functions
+async function loadMyStock() {
+  try {
+    const myStockItems = await fetchMyStock();
+    renderMyStock(myStockItems);
+  } catch (err) {
+    console.error('Error loading my stock items:', err);
+    document.getElementById('myStockError').textContent = 'Error loading my stock items';
+    document.getElementById('myStockError').style.display = 'block';
+  }
+}
+
+// ======================
+// RENDERING FUNCTIONS
+// ======================
+
 function renderStockItems(stockItems) {
   const tbody = document.getElementById('stockListBody');
   tbody.innerHTML = '';
   
   if (!stockItems || stockItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No stock items found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No stock items found</td></tr>';
     return;
   }
   
@@ -508,6 +654,7 @@ function renderStockItems(stockItems) {
       <td>${item.name}</td>
       <td>${item.type}</td>
       <td>${item.quantity}</td>
+      <td>${item.department || 'MMG'}</td>
       <td>${new Date(item.updatedAt || item.createdAt).toLocaleDateString()}</td>
       <td>
         <button onclick="editStockItem('${item._id}')" class="edit-btn">Edit</button>
@@ -523,12 +670,18 @@ function renderRequests(requests) {
   tbody.innerHTML = '';
   
   if (!requests || requests.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="loading-text">No pending requests found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No pending requests found</td></tr>';
     return;
   }
   
   requests.forEach((request, index) => {
     const row = document.createElement('tr');
+    row.dataset.requestId = request._id;
+    row.dataset.itemName = request.itemName;
+    row.dataset.requestedBy = request.requestedBy?.name || 'Unknown';
+    row.dataset.department = request.department;
+    row.dataset.quantity = request.quantity;
+    
     row.innerHTML = `
       <td>${index + 1}</td>
       <td>${request.requestedBy?.name || 'Unknown'}</td>
@@ -537,10 +690,37 @@ function renderRequests(requests) {
       <td>${request.type}</td>
       <td>${request.quantity}</td>
       <td>${new Date(request.departmentApprovalDate).toLocaleDateString()}</td>
-      <td>${request.departmentApprovedBy?.name || 'Unknown'}</td>
       <td>
         <button onclick="showApproveModal('${request._id}', '${request.itemName}', '${request.requestedBy?.name || 'Unknown'}', '${request.department}', ${request.quantity})" class="btn-approve">Approve</button>
         <button onclick="showRejectModal('${request._id}', '${request.itemName}', '${request.requestedBy?.name || 'Unknown'}')" class="btn-reject">Reject</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function renderMyRequests(requests) {
+  const tbody = document.getElementById('myRequestsBody');
+  tbody.innerHTML = '';
+  
+  if (!requests || requests.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No requests found</td></tr>';
+    return;
+  }
+  
+  requests.forEach((request, index) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${request.type}</td>
+      <td>${request.itemName}</td>
+      <td>${new Date(request.requestDate).toLocaleDateString()}</td>
+      <td>${request.quantity}</td>
+      <td><span class="status-badge status-${request.status.toLowerCase()}">${request.status}${request.reason ? `<br><small>Reason: ${request.reason}</small>` : ''}</span></td>
+      <td>
+        ${request.status === 'Pending' ? 
+          `<button onclick="cancelRequest('${request._id}')" class="btn-reject">Cancel</button>` : 
+          '-'}
       </td>
     `;
     tbody.appendChild(row);
@@ -625,7 +805,36 @@ function renderNotifications(notifications) {
   });
 }
 
-// Action functions
+function renderMyStock(myStockItems) {
+  const tbody = document.getElementById('myStockBody');
+  tbody.innerHTML = '';
+  
+  if (!myStockItems || myStockItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No stock items found</td></tr>';
+    return;
+  }
+  
+  myStockItems.forEach((item, index) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${item.ledgerNo || '-'}</td>
+      <td>${item.itemName}</td>
+      <td>${item.type}</td>
+      <td>${item.quantity}</td>
+      <td>${new Date(item.issueDate).toLocaleDateString()}</td>
+      <td>
+        <button onclick="returnItem('${item._id}')" class="btn-return">Return</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// ======================
+// ACTION FUNCTIONS
+// ======================
+
 function showApproveModal(requestId, itemName, requester, department, quantity) {
   document.getElementById('approveRequestId').value = requestId;
   document.getElementById('approveItemName').textContent = itemName;
@@ -647,18 +856,15 @@ async function notifyUser(userId, itemName) {
     try {
       const response = await fetch('/api/send-notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
           message: `Please return ${itemName} to the inventory`,
           type: 'Return Reminder'
         })
       });
-
+      
       if (response.ok) {
-        const data = await response.json();
         showNotification('Notification sent successfully');
         loadNotifications();
       } else {
@@ -677,14 +883,11 @@ async function addToStock(itemId) {
     try {
       const response = await fetch('/api/add-to-stock', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId })
       });
-
+      
       if (response.ok) {
-        const data = await response.json();
         showNotification('Item added to stock successfully');
         await Promise.all([loadReturnItems(), loadStockItems()]);
       } else {
@@ -702,14 +905,11 @@ async function markNotificationDone(notificationId) {
   try {
     const response = await fetch('/api/mark-notification-done', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notificationId })
     });
-
+    
     if (response.ok) {
-      const data = await response.json();
       showNotification('Notification marked as done');
       loadNotifications();
     } else {
@@ -728,22 +928,22 @@ async function editStockItem(itemId) {
     if (response.ok) {
       const item = await response.json();
       currentEditingStockId = itemId;
+      const form = document.getElementById('stockItemForm');
       
-      // Populate form with item data
-      document.getElementById('stockItemForm').elements.ledger.value = item.ledgerNo || '';
-      document.getElementById('stockType').value = item.type || '';
+      form.elements.ledger.value = item.ledgerNo || '';
+      form.elements.department.value = item.department || 'MMG';
+      form.elements.type.value = item.type || '';
       
       // Trigger change event to populate items
       const event = new Event('change');
       document.getElementById('stockType').dispatchEvent(event);
       
-      // Wait a moment for the options to populate before setting the value
+      // Small delay to ensure options are populated
       setTimeout(() => {
-        document.getElementById('stockItemName').value = item.name || '';
+        form.elements.item.value = item.name || '';
       }, 50);
       
-      document.getElementById('stockItemForm').elements.quantity.value = item.quantity || 1;
-      
+      form.elements.quantity.value = item.quantity || 1;
       document.getElementById('stockFormModal').style.display = 'block';
     } else {
       throw new Error('Failed to fetch item');
@@ -760,9 +960,8 @@ async function deleteStockItem(itemId) {
       const response = await fetch(`/api/stock/${itemId}`, {
         method: 'DELETE'
       });
-
+      
       if (response.ok) {
-        const data = await response.json();
         showNotification('Stock item deleted successfully');
         loadStockItems();
       } else {
@@ -776,6 +975,51 @@ async function deleteStockItem(itemId) {
   }
 }
 
+async function cancelRequest(requestId) {
+  if (confirm('Are you sure you want to cancel this request?')) {
+    try {
+      const response = await fetch(`/api/cancel-request/${requestId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        showNotification('Request cancelled successfully');
+        loadMyRequests();
+      } else {
+        const error = await response.json();
+        showNotification(error.error || 'Failed to cancel request', 'error');
+      }
+    } catch (err) {
+      console.error('Error cancelling request:', err);
+      showNotification('Failed to cancel request', 'error');
+    }
+  }
+}
+
+async function returnItem(itemId) {
+  if (confirm('Are you sure you want to return this item?')) {
+    try {
+      const response = await fetch('/api/return-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      });
+      
+      if (response.ok) {
+        showNotification('Item return requested successfully');
+        await Promise.all([loadMyStock(), loadReturnItems()]);
+      } else {
+        const error = await response.json();
+        showNotification(error.error || 'Failed to request return', 'error');
+      }
+    } catch (err) {
+      console.error('Error requesting return:', err);
+      showNotification('Failed to request return', 'error');
+    }
+  }
+}
+
 async function saveProfile() {
   try {
     const formData = {
@@ -785,15 +1029,13 @@ async function saveProfile() {
       designation: document.getElementById('designationInput').value,
       password: document.getElementById('passwordInput').value
     };
-
+    
     const response = await fetch('/api/update-profile', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
     });
-
+    
     if (response.ok) {
       const data = await response.json();
       document.querySelector('.user-name').textContent = data.user.name;
@@ -802,8 +1044,10 @@ async function saveProfile() {
       document.querySelectorAll('.profile-fields input').forEach(input => {
         input.disabled = true;
       });
+      
       document.getElementById('editProfile').style.display = 'inline-block';
       document.getElementById('saveProfile').style.display = 'none';
+      document.getElementById('passwordInput').value = '';
       
       showNotification('Profile updated successfully');
     } else {
@@ -816,44 +1060,119 @@ async function saveProfile() {
   }
 }
 
-// Utility functions
 function filterTable(tableId) {
   const prefix = tableId.replace('Body', '');
-  const searchTerm = document.getElementById(`search${prefix}`).value.toLowerCase();
-  const typeFilter = document.getElementById(`typeFilter${prefix}`).value;
-  const dateFilter = document.getElementById(`dateFilter${prefix}`).value;
-  const deptFilter = document.getElementById(`deptFilter${prefix}`)?.value || '';
+  const searchInput = document.getElementById(`search${prefix}`);
+  const typeFilter = document.getElementById(`typeFilter${prefix}`);
+  const dateFilter = document.getElementById(`dateFilter${prefix}`);
+  const deptFilter = document.getElementById(`deptFilter${prefix}`);
+  const statusFilter = document.getElementById(`statusFilter${prefix}`);
+  
+  const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+  const typeValue = typeFilter ? typeFilter.value : '';
+  const dateValue = dateFilter ? dateFilter.value : '';
+  const deptValue = deptFilter ? deptFilter.value : '';
+  const statusValue = statusFilter ? statusFilter.value : '';
   
   const rows = document.querySelectorAll(`#${tableId} tr`);
   
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
-    const itemText = row.textContent.toLowerCase();
-    const itemType = cells[3]?.textContent || cells[2]?.textContent || '';
-    const itemDate = cells[4]?.textContent || cells[5]?.textContent || cells[6]?.textContent || '';
-    const itemDept = cells[2]?.textContent || cells[5]?.textContent || '';
+    if (cells.length === 1) return; // Skip loading/empty rows
     
-    const matchesSearch = searchTerm === '' || itemText.includes(searchTerm);
-    const matchesType = typeFilter === '' || itemType === typeFilter;
-    const matchesDate = dateFilter === '' || itemDate === dateFilter;
-    const matchesDept = deptFilter === '' || itemDept === deptFilter;
+    let rowText = '';
+    let itemType = '';
+    let itemDate = '';
+    let itemDept = '';
+    let itemStatus = '';
+    let itemQty = '';
+    let itemName = '';
     
-    row.style.display = matchesSearch && matchesType && matchesDate && matchesDept ? '' : 'none';
+    // Extract relevant data based on table structure
+    cells.forEach((cell, index) => {
+      const header = document.querySelector(`#${tableId.replace('Body', '')} th:nth-child(${index+1})`);
+      if (header) {
+        const headerText = header.textContent.toLowerCase();
+        rowText += cell.textContent.toLowerCase() + ' ';
+        
+        if (headerText.includes('type')) itemType = cell.textContent;
+        if (headerText.includes('date')) itemDate = cell.textContent;
+        if (headerText.includes('department') || headerText.includes('dept')) itemDept = cell.textContent;
+        if (headerText.includes('status')) itemStatus = cell.textContent;
+        if (headerText.includes('qty') || headerText.includes('quantity')) itemQty = cell.textContent;
+        if (headerText.includes('name') || headerText.includes('item')) itemName = cell.textContent;
+      }
+    });
+    
+    // Apply filters
+    const matchesSearch = searchTerm === '' || rowText.includes(searchTerm);
+    const matchesType = typeValue === '' || itemType === typeValue;
+    const matchesDate = dateValue === '' || itemDate.includes(dateValue);
+    const matchesDept = deptValue === '' || itemDept === deptValue;
+    const matchesStatus = statusValue === '' || itemStatus === statusValue;
+    const matchesQty = !searchTerm || isNaN(parseInt(searchTerm)) || itemQty.includes(searchTerm);
+    const matchesName = !searchTerm || itemName.toLowerCase().includes(searchTerm);
+    
+    row.style.display = matchesSearch && matchesType && matchesDate && matchesDept && 
+                       matchesStatus && matchesQty && matchesName ? '' : 'none';
   });
 }
 
-function showNotification(message, type = 'success') {
-  const toast = document.getElementById('notificationToast');
-  toast.textContent = message;
-  toast.className = `notification-toast ${type}`;
-  toast.style.display = 'block';
+function exportToExcel(tableID, filename) {
+  const table = document.getElementById(tableID);
+  if (!table) {
+    showNotification('No data to export', 'error');
+    return;
+  }
+
+  // Create HTML string for table
+  let html = '<table>';
   
-  setTimeout(() => {
-    toast.style.display = 'none';
-  }, 3000);
+  // Add headers (skip department headers)
+  const headers = table.closest('.tab-content').querySelectorAll('thead th');
+  html += '<tr>';
+  headers.forEach(header => {
+    if (!header.classList.contains('department-header')) {
+      html += `<th>${header.textContent}</th>`;
+    }
+  });
+  html += '</tr>';
+  
+  // Add rows (only visible rows)
+  const rows = table.querySelectorAll('tr');
+  rows.forEach(row => {
+    if (row.style.display !== 'none') {
+      html += '<tr>';
+      row.querySelectorAll('td').forEach((cell, index) => {
+        // Skip columns that match department headers
+        if (!headers[index] || !headers[index].classList.contains('department-header')) {
+          // Remove buttons from exported data
+          const content = cell.querySelector('button') ? '' : cell.textContent;
+          html += `<td>${content}</td>`;
+        }
+      });
+      html += '</tr>';
+    }
+  });
+  
+  html += '</table>';
+  
+  // Create download link
+  const blob = new Blob([html], {type: 'application/vnd.ms-excel'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${filename}_${new Date().toISOString().split('T')[0]}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showNotification(`Exported data to ${filename}.xls`);
 }
 
-// Global exports
+// ======================
+// GLOBAL EXPORTS
+// ======================
+
 window.showApproveModal = showApproveModal;
 window.showRejectModal = showRejectModal;
 window.notifyUser = notifyUser;
@@ -861,4 +1180,7 @@ window.addToStock = addToStock;
 window.markNotificationDone = markNotificationDone;
 window.editStockItem = editStockItem;
 window.deleteStockItem = deleteStockItem;
+window.cancelRequest = cancelRequest;
+window.returnItem = returnItem;
 window.filterTable = filterTable;
+window.exportToExcel = exportToExcel;

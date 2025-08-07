@@ -94,6 +94,34 @@
     .request-info p {
       margin: 5px 0;
     }
+    .excel-btn {
+      background-color: #1d6f42;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+      margin-left: 10px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .excel-btn::before {
+      content: "📊";
+      margin-right: 5px;
+    }
+    .filter-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+    }
+    .type-filter, .date-filter {
+      min-width: 150px;
+    }
   </style>
 </head>
 <body>
@@ -107,6 +135,8 @@
     <h4 class="nav-title">Navigation</h4>
     <ul>
       <li data-target="stockList" class="active">Stock List</li>
+      <li data-target="myStock">My Stock</li> 
+      <li data-target="myRequests">My Requests</li>
       <li data-target="requestList">Request List</li>
       <li data-target="approvedList">Approved List</li>
       <li data-target="returnList">Return List</li>
@@ -141,10 +171,56 @@
   </aside>
 
   <main class="content">
+    <!-- My Stock Section -->
+    <section id="myStock" class="tab-content">
+      <div class="section-header">
+        <h2>My Stock Items</h2>
+        <button onclick="exportToExcel('myStockBody', 'My_Stock_Items')" class="excel-btn">Export to Excel</button>
+      </div>
+      <div id="myStockError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchMyStock" placeholder="Search items..." class="search-input" />
+          <select id="typeFilterMyStock" class="type-filter">
+            <option value="">All Types</option>
+            <option>Electronics</option>
+            <option>Stationery</option>
+            <option>Furniture</option>
+            <option>Tools</option>
+            <option>Cleaning</option>
+            <option>Miscellaneous</option>
+          </select>
+          <input type="date" id="dateFilterMyStock" class="date-filter" />
+          <button class="filter-btn" data-target="myStockBody">🔍 Filter</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item Name</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Issue Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="myStockBody">
+          <tr><td colspan="7" class="loading-text">Loading your stock items...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
     <!-- Stock List Section -->
     <section id="stockList" class="tab-content active">
-      <h2>MMG Stock List</h2>
-      <button id="toggleStockForm" class="new-request-btn">+ Add Stock</button>
+      <div class="section-header">
+        <h2>MMG Stock List</h2>
+        <div>
+          <button id="toggleStockForm" class="new-request-btn">+ Add Stock</button>
+          <button onclick="exportToExcel('stockListBody', 'MMG_Stock_List')" class="excel-btn">Export to Excel</button>
+        </div>
+      </div>
       <div id="stockListError" class="error-message"></div>
       <div class="filters">
         <div class="filter-group">
@@ -158,8 +234,17 @@
             <option>Cleaning</option>
             <option>Miscellaneous</option>
           </select>
+          <select id="deptFilterStock" class="type-filter">
+            <option value="">All Departments</option>
+            <option value="MMG">MMG</option>
+            <option value="IT">IT</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+            <option value="Operations">Operations</option>
+            <option value="R&D">R&D</option>
+          </select>
           <input type="date" id="dateFilterStock" class="date-filter" />
-          <button class="filter-btn" data-target="stockListBody">🔍</button>
+          <button class="filter-btn" data-target="stockListBody">🔍 Filter</button>
         </div>
       </div>
       <table>
@@ -175,19 +260,23 @@
             <th>Item Name</th>
             <th>Type</th>
             <th>Quantity</th>
+            <th>Department</th>
             <th>Last Updated</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="stockListBody">
-          <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
+          <tr><td colspan="8" class="loading-text">Loading stock data...</td></tr>
         </tbody>
       </table>
     </section>
 
-    <!-- Request List Section -->
+    <!-- Pending Requests Section -->
     <section id="requestList" class="tab-content">
-      <h2>Pending Requests</h2>
+      <div class="section-header">
+        <h2>Pending Requests</h2>
+        <button onclick="exportToExcel('requestListBody', 'Pending_Requests')" class="excel-btn">Export to Excel</button>
+      </div>
       <div id="requestListError" class="error-message"></div>
       <div class="filters">
         <div class="filter-group">
@@ -208,7 +297,7 @@
             <% }); %>
           </select>
           <input type="date" id="dateFilterRequests" class="date-filter" />
-          <button class="filter-btn" data-target="requestListBody">🔍</button>
+          <button class="filter-btn" data-target="requestListBody">🔍 Filter</button>
         </div>
       </div>
       <table>
@@ -235,9 +324,63 @@
       </table>
     </section>
 
+    <!-- My Requests Section -->
+    <section id="myRequests" class="tab-content">
+      <div class="section-header">
+        <h2>My Requests</h2>
+        <div class="section-actions">
+          <button id="toggleRequestForm" class="new-request-btn">+ New Request</button>
+          <button onclick="exportToExcel('myRequestsBody', 'My_Requests')" class="excel-btn">Export to Excel</button>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchMyRequests" placeholder="Search requests..." class="search-input" />
+          <select id="typeFilterMyRequests" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+          <select id="statusFilterMyRequests" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <input type="date" id="dateFilterMyRequests" class="date-filter" />
+          <button class="filter-btn" data-target="myRequestsBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Request Date</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="myRequestsBody">
+            <tr><td colspan="7" class="loading-text">Loading your requests...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Approved List Section -->
     <section id="approvedList" class="tab-content">
-      <h2>Approved Items</h2>
+      <div class="section-header">
+        <h2>Approved Items</h2>
+        <button onclick="exportToExcel('approvedListBody', 'Approved_Items')" class="excel-btn">Export to Excel</button>
+      </div>
       <div id="approvedListError" class="error-message"></div>
       <div class="filters">
         <div class="filter-group">
@@ -258,7 +401,7 @@
             <% }); %>
           </select>
           <input type="date" id="dateFilterApproved" class="date-filter" />
-          <button class="filter-btn" data-target="approvedListBody">🔍</button>
+          <button class="filter-btn" data-target="approvedListBody">🔍 Filter</button>
         </div>
       </div>
       <table>
@@ -287,7 +430,10 @@
 
     <!-- Return List Section -->
     <section id="returnList" class="tab-content">
-      <h2>Return Requests</h2>
+      <div class="section-header">
+        <h2>Return Requests</h2>
+        <button onclick="exportToExcel('returnListBody', 'Return_Requests')" class="excel-btn">Export to Excel</button>
+      </div>
       <div id="returnListError" class="error-message"></div>
       <div class="filters">
         <div class="filter-group">
@@ -308,7 +454,7 @@
             <% }); %>
           </select>
           <input type="date" id="dateFilterReturns" class="date-filter" />
-          <button class="filter-btn" data-target="returnListBody">🔍</button>
+          <button class="filter-btn" data-target="returnListBody">🔍 Filter</button>
         </div>
       </div>
       <table>
@@ -338,7 +484,10 @@
 
     <!-- Notification List Section -->
     <section id="notificationList" class="tab-content">
-      <h2>Notifications</h2>
+      <div class="section-header">
+        <h2>Notifications</h2>
+        <button onclick="exportToExcel('notificationListBody', 'Notifications')" class="excel-btn">Export to Excel</button>
+      </div>
       <div id="notificationListError" class="error-message"></div>
       <div class="filters">
         <div class="filter-group">
@@ -351,7 +500,7 @@
             <option>Alert</option>
           </select>
           <input type="date" id="dateFilterNotifications" class="date-filter" />
-          <button class="filter-btn" data-target="notificationListBody">🔍</button>
+          <button class="filter-btn" data-target="notificationListBody">🔍 Filter</button>
         </div>
       </div>
       <table>
@@ -372,17 +521,62 @@
     </section>
   </main>
 
+  <!-- Request Form Modal -->
+  <div id="requestFormModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRequestForm">&times;</span>
+      <h3>Request New Item</h3>
+      <form id="requestItemForm">
+        <label>Type: 
+          <select name="type" id="itemType" required>
+            <option value="">--Select Type--</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+        </label>
+        <label>Item Name: 
+          <select name="item" id="itemName" required>
+            <option value="">--Select Type First--</option>
+          </select>
+        </label>
+        <label>Quantity: 
+          <input type="number" name="qty" id="itemQty" min="1" required />
+          <small class="hint">Minimum: 1</small>
+        </label>
+        <div class="form-buttons">
+          <button type="submit">Submit Request</button>
+          <button type="button" id="cancelRequest">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Stock Form Modal -->
   <div id="stockFormModal" class="modal">
     <div class="modal-content">
       <span class="close-btn" id="closeStockForm">&times;</span>
       <h3>Add/Update Stock</h3>
       <form id="stockItemForm">
+        <label>Department:
+          <select name="department" required>
+            <option value="MMG" selected>MMG</option>
+            <option value="IT">IT</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+            <option value="Operations">Operations</option>
+            <option value="R&D">R&D</option>
+          </select>
+        </label>
         <label>Ledger No: 
-  <input type="text" name="ledger" required 
-         pattern="\d+" 
-         title="Numbers only (e.g., 123456)" />
-</label><label>Type:
+          <input type="text" name="ledger" required 
+                 pattern="\d+" 
+                 title="Numbers only (e.g., 123456)" />
+        </label>
+        <label>Type:
           <select name="type" id="stockType" required>
             <option value="">--Select--</option>
             <option value="Electronics">Electronics</option>
@@ -429,6 +623,26 @@
     </div>
   </div>
 
+  <!-- Reject Modal -->
+  <div id="rejectModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRejectModal">&times;</span>
+      <h3>Reject Request</h3>
+      <form id="rejectForm">
+        <input type="hidden" id="rejectRequestId" name="requestId">
+        <div class="request-info">
+          <p><strong>Item:</strong> <span id="rejectItemName"></span></p>
+          <p><strong>Requested By:</strong> <span id="rejectRequester"></span></p>
+        </div>
+        <label>Reason: <textarea name="reason" required></textarea></label>
+        <div class="form-buttons">
+          <button type="submit" class="btn-reject">Reject</button>
+          <button type="button" id="cancelReject" class="btn-reject">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Notification Toast -->
   <div id="notificationToast" class="notification-toast"></div>
 
@@ -442,6 +656,16 @@
       designation: '<%= currentUser.designation %>',
       department: '<%= currentUser.department %>',
       role: '<%= currentUser.role %>'
+    };
+    
+    // Item options for dropdowns
+    window.itemOptions = {
+      Electronics: ['Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector'],
+      Stationery: ['Notebook', 'Pen', 'Pencil', 'Stapler', 'Highlighter', 'Sticky Notes'],
+      Furniture: ['Chair', 'Table', 'Desk', 'Cabinet', 'Bookshelf', 'Filing Cabinet'],
+      Tools: ['Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape'],
+      Cleaning: ['Broom', 'Mop', 'Dustpan', 'Cleaning Cloth', 'Disinfectant Spray', 'Trash Bags'],
+      Miscellaneous: ['Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox']
     };
   </script>
   <script src="/javascript/mmgholder.js"></script>

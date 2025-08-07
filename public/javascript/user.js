@@ -278,6 +278,12 @@ function setupEventListeners() {
         rejectRequest(requestId, reason);
       }
     }
+
+    // Export buttons
+    if (e.target.classList.contains('export-btn')) {
+      const target = e.target.getAttribute('data-target');
+      exportToExcel(target);
+    }
   });
 
   // Filter buttons
@@ -289,6 +295,14 @@ function setupEventListeners() {
       } else {
         filterTable(target);
       }
+    });
+  });
+
+  // Reset filter buttons
+  document.querySelectorAll('.reset-filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const target = this.getAttribute('data-target');
+      resetFilters(target);
     });
   });
 
@@ -661,14 +675,41 @@ async function cancelRequest(requestId) {
   }
 }
 
+function exportToExcel(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  // Get the section name for the file name
+  const sectionName = table.closest('.tab-content')?.id || 'data';
+  const fileName = `${sectionName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+  // Clone the table to manipulate it
+  const clone = table.cloneNode(true);
+  
+  // Remove action buttons from the clone
+  const actionButtons = clone.querySelectorAll('.action-btn');
+  actionButtons.forEach(btn => btn.remove());
+
+  // Convert to worksheet
+  const ws = XLSX.utils.table_to_sheet(clone);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  
+  // Export the file
+  XLSX.writeFile(wb, fileName);
+  showNotification(`Exported ${sectionName} data to Excel`);
+}
+
 function filterTable(tableId) {
   const prefix = tableId.replace('Body', '');
   const searchTerm = document.getElementById(`search${prefix}`)?.value.toLowerCase() || '';
   const typeFilter = document.getElementById(`typeFilter${prefix}`)?.value || '';
   const dateFilter = document.getElementById(`dateFilter${prefix}`)?.value || '';
+  const quantityFilter = document.getElementById(`qtyFilter${prefix}`)?.value || '';
+  const ledgerFilter = document.getElementById(`ledgerFilter${prefix}`)?.value || '';
   
   let statusFilter = '';
-  if (tableId === 'requestListBody') {
+  if (tableId === 'requestListBody' || tableId === 'returnListBody') {
     statusFilter = document.getElementById(`statusFilter${prefix}`)?.value || '';
   }
   
@@ -683,28 +724,34 @@ function filterTable(tableId) {
     let itemType = '';
     let itemDate = '';
     let itemStatus = '';
+    let itemQty = '';
+    let itemLedger = '';
     
     if (tableId === 'myItemsBody' || tableId === 'approvedItemsBody' || tableId === 'returnListBody') {
       itemName = cells[3]?.textContent.toLowerCase() || '';
       itemType = cells[2]?.textContent || '';
       itemDate = cells[4]?.textContent || '';
+      itemQty = cells[5]?.textContent || '';
+      itemLedger = cells[1]?.textContent || '';
     } else if (tableId === 'requestListBody') {
       itemName = cells[2]?.textContent.toLowerCase() || '';
       itemType = cells[1]?.textContent || '';
       itemDate = cells[3]?.textContent || '';
+      itemQty = cells[4]?.textContent || '';
       itemStatus = cells[5]?.textContent || '';
     }
     
-    const matchesSearch = searchTerm === '' || itemName.includes(searchTerm);
+    const matchesSearch = searchTerm === '' || 
+      itemName.includes(searchTerm) || 
+      itemLedger.includes(searchTerm);
     const matchesType = typeFilter === '' || itemType === typeFilter;
-    const matchesDate = dateFilter === '' || itemDate === dateFilter;
+    const matchesDate = dateFilter === '' || itemDate.includes(dateFilter);
     const matchesStatus = statusFilter === '' || itemStatus === statusFilter;
+    const matchesQty = quantityFilter === '' || itemQty.includes(quantityFilter);
+    const matchesLedger = ledgerFilter === '' || itemLedger.includes(ledgerFilter);
     
-    if (tableId === 'requestListBody') {
-      row.style.display = matchesSearch && matchesType && matchesDate && matchesStatus ? '' : 'none';
-    } else {
-      row.style.display = matchesSearch && matchesType && matchesDate ? '' : 'none';
-    }
+    row.style.display = matchesSearch && matchesType && matchesDate && 
+      matchesStatus && matchesQty && matchesLedger ? '' : 'none';
   });
 }
 
@@ -729,6 +776,36 @@ function filterNotifications() {
     
     item.style.display = matchesSearch && matchesType && matchesDate ? '' : 'none';
   });
+}
+
+function resetFilters(target) {
+  const prefix = target.replace('Body', '').replace('List', '');
+  
+  // Reset all filter inputs
+  document.getElementById(`search${prefix}`).value = '';
+  document.getElementById(`typeFilter${prefix}`).value = '';
+  document.getElementById(`dateFilter${prefix}`).value = '';
+  
+  if (document.getElementById(`qtyFilter${prefix}`)) {
+    document.getElementById(`qtyFilter${prefix}`).value = '';
+  }
+  
+  if (document.getElementById(`ledgerFilter${prefix}`)) {
+    document.getElementById(`ledgerFilter${prefix}`).value = '';
+  }
+  
+  if (document.getElementById(`statusFilter${prefix}`)) {
+    document.getElementById(`statusFilter${prefix}`).value = '';
+  }
+  
+  // Reapply empty filters to show all rows
+  if (target === 'notificationList') {
+    filterNotifications();
+  } else {
+    filterTable(target);
+  }
+  
+  showNotification('Filters reset');
 }
 
 function showNotification(message, type = 'success') {
@@ -771,3 +848,5 @@ window.cancelRequest = cancelRequest;
 window.filterTable = filterTable;
 window.filterNotifications = filterNotifications;
 window.markNotificationDone = markNotificationDone;
+window.exportToExcel = exportToExcel;
+window.resetFilters = resetFilters;

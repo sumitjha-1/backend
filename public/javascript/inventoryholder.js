@@ -132,6 +132,7 @@ function setupRequestForm() {
       const itemName = document.getElementById('itemName').value.trim();
       const type = document.getElementById('itemType').value.trim();
       const quantity = parseInt(document.getElementById('itemQty').value);
+      const priority = document.getElementById('itemPriority').value;
 
       if (!itemName || !type || isNaN(quantity) || quantity < 1) {
         showNotification('Please fill all fields with valid values', 'error');
@@ -147,7 +148,8 @@ function setupRequestForm() {
           body: JSON.stringify({
             itemName,
             type,
-            quantity
+            quantity,
+            priority
           })
         });
 
@@ -237,6 +239,23 @@ function setupEventListeners() {
       const target = e.target.dataset.target;
       filterTable(target);
     }
+
+    // Export buttons
+    if (e.target.classList.contains('export-btn')) {
+      const target = e.target.dataset.target;
+      exportToExcel(target);
+    }
+
+    // Close modals
+    if (e.target.id === 'closeApprovalModal' || e.target.id === 'cancelApproval') {
+      document.getElementById('approvalModal').style.display = 'none';
+    }
+    if (e.target.id === 'closeRejectModal' || e.target.id === 'cancelReject') {
+      document.getElementById('rejectModal').style.display = 'none';
+    }
+    if (e.target.id === 'btnConfirmReject') {
+      rejectRequest();
+    }
   });
 
   // Search inputs (on Enter key)
@@ -256,6 +275,9 @@ function setupEventListeners() {
   window.addEventListener('click', function(e) {
     if (e.target === document.getElementById('profilePanel')) {
       document.getElementById('profilePanel').classList.remove('open');
+    }
+    if (e.target.classList.contains('modal')) {
+      e.target.style.display = 'none';
     }
   });
 }
@@ -442,7 +464,7 @@ function renderUsers(users) {
   tbody.innerHTML = '';
   
   if (!users || users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="loading-text">No users found in your department</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No users found in your department</td></tr>';
     return;
   }
   
@@ -453,7 +475,6 @@ function renderUsers(users) {
       <td>${user.name}</td>
       <td>${user.designation}</td>
       <td>${user.email}</td>
-      <td>${user.cadre.replace(/_/g, ' ')}</td>
       <td>
         <button class="view-items-btn" data-userid="${user._id}" data-username="${user.name}">View Items</button>
       </td>
@@ -467,7 +488,7 @@ function renderStockItems(stockItems) {
   tbody.innerHTML = '';
   
   if (!stockItems || stockItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No stock items found in your department</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No stock items found in your department</td></tr>';
     return;
   }
   
@@ -479,10 +500,7 @@ function renderStockItems(stockItems) {
       <td>${item.name}</td>
       <td>${item.type}</td>
       <td>${item.quantity}</td>
-      <td>${new Date(item.updatedAt).toLocaleDateString()}</td>
-      <td>
-        <button class="edit-btn" data-itemid="${item._id}">Edit</button>
-      </td>
+      <td>${item.issuedTo?.name || 'None'}</td>
     `;
     tbody.appendChild(row);
   });
@@ -493,7 +511,7 @@ function renderRequests(requests) {
   tbody.innerHTML = '';
   
   if (!requests || requests.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No pending requests in your department</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="loading-text">No pending requests in your department</td></tr>';
     return;
   }
   
@@ -506,6 +524,7 @@ function renderRequests(requests) {
       <td>${request.itemName}</td>
       <td>${request.type}</td>
       <td>${request.quantity}</td>
+      
       <td>${new Date(request.createdAt).toLocaleDateString()}</td>
       <td>
         <button class="approve-btn" data-requestid="${request._id}">Approve</button>
@@ -521,7 +540,7 @@ function renderApprovedItems(approvedItems) {
   tbody.innerHTML = '';
   
   if (!approvedItems || approvedItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No approved items in your department</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="loading-text">No approved items in your department</td></tr>';
     return;
   }
   
@@ -534,8 +553,11 @@ function renderApprovedItems(approvedItems) {
       <td>${item.type}</td>
       <td>${item.quantity}</td>
       <td>${item.issuedTo?.name || 'Unknown'}</td>
+      <td><span class="status-badge ${item.status === 'Issued' ? 'completed' : 'pending'}">${item.status || 'Issued'}</span></td>
       <td>${new Date(item.approvedDate).toLocaleDateString()}</td>
-      <td><span class="status-badge approved">Approved</span></td>
+      <td>
+        <button class="notify-btn" data-userid="${item.issuedTo?._id}" data-itemname="${item.itemName}">Notify</button>
+      </td>
     `;
     tbody.appendChild(row);
   });
@@ -546,7 +568,7 @@ function renderReturnItems(returnItems) {
   tbody.innerHTML = '';
   
   if (!returnItems || returnItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="loading-text">No return requests in your department</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="loading-text">No return requests in your department</td></tr>';
     return;
   }
   
@@ -607,7 +629,7 @@ function renderMyStock(stock) {
   tbody.innerHTML = '';
   
   if (!stock || stock.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="loading-text">No stock items found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No stock items found</td></tr>';
     return;
   }
   
@@ -620,6 +642,9 @@ function renderMyStock(stock) {
       <td>${item.type}</td>
       <td>${item.quantity}</td>
       <td>${new Date(item.updatedAt).toLocaleDateString()}</td>
+      <td>
+        <button class="request-return-btn" data-itemid="${item._id}">Request Return</button>
+      </td>
     `;
     tbody.appendChild(row);
   });
@@ -630,7 +655,7 @@ function renderMyRequests(requests) {
   tbody.innerHTML = '';
   
   if (!requests || requests.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">No requests found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="loading-text">No requests found</td></tr>';
     return;
   }
   
@@ -642,7 +667,7 @@ function renderMyRequests(requests) {
       <td>${request.itemName}</td>
       <td>${new Date(request.createdAt).toLocaleDateString()}</td>
       <td>${request.quantity}</td>
-      <td><span class="status-badge status-${request.status.toLowerCase()}">${request.status}</span></td>
+      <td><span class="status-badge ${request.status.toLowerCase()}">${request.status}</span></td>
       <td>
         ${request.status === 'Pending' ? 
           `<button class="cancel-btn action-btn" data-id="${request._id}">Cancel</button>` : 
@@ -725,7 +750,7 @@ async function approveRequest(requestId) {
   }
 }
 
-async function showRejectModal(requestId) {
+function showRejectModal(requestId) {
   document.getElementById('rejectRequestId').value = requestId;
   document.getElementById('rejectReason').value = '';
   document.getElementById('rejectModal').style.display = 'block';
@@ -987,13 +1012,22 @@ async function saveProfile() {
 // Utility functions
 function filterTable(tableId) {
   const prefix = tableId.replace('Body', '');
-  const searchTerm = document.getElementById(`search${prefix}`).value.toLowerCase();
-  const typeFilter = document.getElementById(`typeFilter${prefix}`).value;
-  const dateFilter = document.getElementById(`dateFilter${prefix}`).value;
+  const searchTerm = document.getElementById(`search${prefix}`)?.value.toLowerCase() || '';
+  const typeFilter = document.getElementById(`typeFilter${prefix}`)?.value || '';
+  const dateFilter = document.getElementById(`dateFilter${prefix}`)?.value || '';
   let statusFilter = '';
+  let desgFilter = '';
+  let priorityFilter = '';
   
+  // Get additional filters based on table
   if (tableId === 'myRequestsBody') {
-    statusFilter = document.getElementById(`statusFilter${prefix}`).value;
+    statusFilter = document.getElementById(`statusFilter${prefix}`)?.value || '';
+    priorityFilter = document.getElementById(`priorityFilter${prefix}`)?.value || '';
+  } else if (tableId === 'userListBody') {
+    desgFilter = document.getElementById(`desgFilter${prefix}`)?.value || '';
+    statusFilter = document.getElementById(`statusFilter${prefix}`)?.value || '';
+  } else if (tableId === 'stockListBody') {
+    statusFilter = document.getElementById(`statusFilter${prefix}`)?.value || '';
   }
   
   const rows = document.querySelectorAll(`#${tableId} tr`);
@@ -1006,27 +1040,119 @@ function filterTable(tableId) {
     let itemType = '';
     let itemDate = '';
     let itemStatus = '';
+    let itemDesg = '';
+    let itemPriority = '';
     
+    // Get cell values based on table structure
     if (tableId === 'myStockBody') {
       itemType = cells[3]?.textContent || '';
       itemDate = cells[5]?.textContent || '';
     } else if (tableId === 'myRequestsBody') {
       itemType = cells[1]?.textContent || '';
+      itemPriority = cells[2]?.textContent || '';
       itemDate = cells[3]?.textContent || '';
       itemStatus = cells[5]?.textContent || '';
+    } else if (tableId === 'userListBody') {
+      itemDesg = cells[2]?.textContent || '';
+      itemStatus = cells[4]?.textContent || '';
+    } else if (tableId === 'stockListBody') {
+      itemType = cells[3]?.textContent || '';
+      itemStatus = cells[5]?.textContent || '';
+    } else if (tableId === 'requestListBody') {
+      itemType = cells[4]?.textContent || '';
+      itemPriority = cells[6]?.textContent || '';
+      itemDate = cells[7]?.textContent || '';
+    } else if (tableId === 'approvedListBody') {
+      itemType = cells[3]?.textContent || '';
+      itemStatus = cells[6]?.textContent || '';
+      itemDate = cells[7]?.textContent || '';
+    } else if (tableId === 'returnListBody') {
+      itemType = cells[3]?.textContent || '';
+      itemStatus = cells[6]?.textContent || '';
+      itemDate = cells[7]?.textContent || '';
+    } else if (tableId === 'notificationListBody') {
+      itemType = cells[1]?.textContent || '';
+      itemStatus = cells[4]?.textContent || '';
+      itemDate = cells[3]?.textContent || '';
     }
     
     const matchesSearch = searchTerm === '' || itemText.includes(searchTerm);
     const matchesType = typeFilter === '' || itemType === typeFilter;
     const matchesDate = dateFilter === '' || itemDate === dateFilter;
     const matchesStatus = statusFilter === '' || itemStatus === statusFilter;
+    const matchesDesg = desgFilter === '' || itemDesg === desgFilter;
+    const matchesPriority = priorityFilter === '' || itemPriority === priorityFilter;
     
     if (tableId === 'myRequestsBody') {
-      row.style.display = matchesSearch && matchesType && matchesDate && matchesStatus ? '' : 'none';
+      row.style.display = matchesSearch && matchesType && matchesDate && matchesStatus && matchesPriority ? '' : 'none';
+    } else if (tableId === 'userListBody') {
+      row.style.display = matchesSearch && matchesDesg && matchesStatus ? '' : 'none';
+    } else if (tableId === 'stockListBody') {
+      row.style.display = matchesSearch && matchesType && matchesStatus ? '' : 'none';
+    } else if (tableId === 'requestListBody') {
+      row.style.display = matchesSearch && matchesType && matchesPriority ? '' : 'none';
     } else {
-      row.style.display = matchesSearch && matchesType && matchesDate ? '' : 'none';
+      row.style.display = matchesSearch && matchesType && matchesStatus ? '' : 'none';
     }
   });
+}
+
+function exportToExcel(tableId) {
+  try {
+    const table = document.querySelector(`#${tableId}`).closest('table');
+    if (!table) {
+      showNotification('No table found to export', 'error');
+      return;
+    }
+
+    // Get all rows
+    const rows = table.querySelectorAll('tr');
+    if (rows.length <= 1) {
+      showNotification('No data to export', 'warning');
+      return;
+    }
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Get headers
+    const headers = [];
+    table.querySelectorAll('th').forEach(th => {
+      headers.push(th.textContent.trim());
+    });
+    
+    // Get data rows
+    const data = [];
+    rows.forEach((row, index) => {
+      if (index === 0) return; // skip header row
+      
+      const rowData = {};
+      row.querySelectorAll('td').forEach((td, colIndex) => {
+        // Skip action columns
+        if (!td.querySelector('button')) {
+          rowData[headers[colIndex]] = td.textContent.trim();
+        }
+      });
+      if (Object.keys(rowData).length > 0) {
+        data.push(rowData);
+      }
+    });
+    
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    
+    // Generate file and download
+    const fileName = `${tableId.replace('Body', '')}_export_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    showNotification('Excel file downloaded successfully');
+  } catch (error) {
+    console.error('Export error:', error);
+    showNotification('Failed to export data', 'error');
+  }
 }
 
 function showLoading() {
@@ -1062,21 +1188,5 @@ function showError(elementId, message) {
     errorElement.style.display = 'block';
   } else {
     showNotification(message, 'error');
-  }
-}
-
-// Helper function for showing loading state in specific table
-function showLoadingInTable(tableId, message = 'Loading data...') {
-  const tbody = document.getElementById(tableId);
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="10" class="loading-text">${message}</td></tr>`;
-  }
-}
-
-// Helper function for showing error in specific table
-function showErrorInTable(tableId, message = 'Error loading data') {
-  const tbody = document.getElementById(tableId);
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="10" class="error-text">${message}</td></tr>`;
   }
 }

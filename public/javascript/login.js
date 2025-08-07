@@ -1,28 +1,79 @@
 document.addEventListener('DOMContentLoaded', function() {
   const loginForm = document.getElementById('loginForm');
-  
-  loginForm.addEventListener('submit', function(e) {
-    const userId = document.getElementById('loginUserId').value.trim();
-    const password = document.getElementById('loginPassword').value;
+  const loginError = document.getElementById('loginError');
+  const loginUserId = document.getElementById('loginUserId');
+  const loginPassword = document.getElementById('loginPassword');
+  const submitBtn = loginForm.querySelector('button[type="submit"]');
+
+  function showError(message) {
+    loginError.textContent = message;
+    loginError.style.display = 'block';
+  }
+
+  function hideError() {
+    loginError.style.display = 'none';
+  }
+
+  function setLoading(isLoading) {
+    submitBtn.disabled = isLoading;
+    if (isLoading) {
+      submitBtn.classList.add('loading');
+      submitBtn.textContent = 'Signing In...';
+    } else {
+      submitBtn.classList.remove('loading');
+      submitBtn.textContent = 'Sign In';
+    }
+  }
+
+  loginForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    hideError();
+
+    const userId = loginUserId.value.trim();
+    const password = loginPassword.value;
     
-    // Simple client-side validation
+    // Client-side validation
     if (!userId) {
-      e.preventDefault();
-      alert('Please enter your User ID');
-      document.getElementById('loginUserId').focus();
+      showError('Please enter your User ID');
+      loginUserId.focus();
       return;
     }
     
     if (!password) {
-      e.preventDefault();
-      alert('Please enter your password');
-      document.getElementById('loginPassword').focus();
+      showError('Please enter your password');
+      loginPassword.focus();
       return;
     }
-    
-    // Show loading state
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Signing in...';
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, password })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Successful login - redirect
+        window.location.href = data.redirect;
+      } else {
+        // Show error from server
+        showError(data.error || 'Login failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      showError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   });
+
+  // Clear error when user starts typing
+  loginUserId.addEventListener('input', hideError);
+  loginPassword.addEventListener('input', hideError);
 });

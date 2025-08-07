@@ -5,187 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= user.name %> - <%= user.department %> Inventory</title>
   <link rel="stylesheet" href="/stylesheet/inventoryholder.css">
-  <style>
-    /* Loading and Error Styles */
-    .loading-text {
-      text-align: center;
-      color: #666;
-      font-style: italic;
-      padding: 20px;
-    }
-    .error-message {
-      color: #d32f2f;
-      padding: 10px;
-      background-color: #ffebee;
-      border-radius: 4px;
-      margin: 10px 0;
-      display: none;
-    }
-
-    /* Status Badges */
-    .status-badge {
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-    }
-    .status-badge.pending {
-      background-color: #fff3e0;
-      color: #e65100;
-    }
-    .status-badge.completed {
-      background-color: #e8f5e9;
-      color: #2e7d32;
-    }
-    .status-badge.approved {
-      background-color: #e8f5e9;
-      color: #2e7d32;
-    }
-    .status-badge.rejected {
-      background-color: #ffebee;
-      color: #c62828;
-    }
-
-    /* Department Header */
-    .department-header {
-      background-color: #e3f2fd;
-      font-weight: bold;
-      text-align: center;
-      padding: 8px;
-    }
-
-    /* Buttons */
-    .btn-approve {
-      background-color: #4caf50;
-      color: white;
-    }
-    .btn-reject {
-      background-color: #f44336;
-      color: white;
-    }
-    .btn-notify {
-      background-color: #ff9800;
-      color: white;
-    }
-    .action-btn {
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    .action-btn:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-    .return-btn {
-      background-color: #2196F3;
-      color: white;
-    }
-    .cancel-btn {
-      background-color: #f44336;
-      color: white;
-    }
-    .mark-done-btn {
-      background-color: #4CAF50;
-      color: white;
-      margin-left: 10px;
-    }
-    .new-request-btn {
-      background-color: #4CAF50;
-      color: white;
-      padding: 8px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    /* Request Form Styles */
-    .request-form-container {
-      background-color: #f5f5f5;
-      padding: 20px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-      display: none;
-    }
-    .request-form-container.active {
-      display: block;
-    }
-    .form-row {
-      margin-bottom: 15px;
-    }
-    .form-row label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    .form-row select, 
-    .form-row input {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .form-actions {
-      margin-top: 15px;
-      text-align: right;
-    }
-    .btn {
-      padding: 8px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-left: 10px;
-    }
-    .btn-primary {
-      background-color: #4CAF50;
-      color: white;
-    }
-    .btn-secondary {
-      background-color: #f44336;
-      color: white;
-    }
-
-    /* Notification Toast */
-    .notification-toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 15px 25px;
-      border-radius: 5px;
-      color: white;
-      display: none;
-      z-index: 1000;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(-20px); }
-    }
-    .notification-toast.success {
-      background-color: #4CAF50;
-    }
-    .notification-toast.error {
-      background-color: #f44336;
-    }
-    .notification-toast.warning {
-      background-color: #FF9800;
-    }
-
-    /* Responsive Table */
-    @media (max-width: 768px) {
-      table {
-        width: 100%;
-        display: block;
-        overflow-x: auto;
-      }
-    }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <header class="navbar">
@@ -205,7 +25,6 @@
       <li data-target="approvedList">Approved List</li>
       <li data-target="returnList">Return List</li>
       <li data-target="notificationList">Notifications</li>
-      
     </ul>
   </aside>
 
@@ -249,13 +68,16 @@
               <option value="<%= desg %>"><%= desg %></option>
             <% }); %>
           </select>
-          <button class="filter-btn" data-target="userListBody">🔍</button>
+          
+          <input type="date" id="dateFilterUsers" class="date-filter">
+          <button class="filter-btn" data-target="userListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="userListBody">📊 Export</button>
         </div>
       </div>
       <table>
         <thead>
           <tr>
-            <th colspan="6" class="department-header">
+            <th colspan="7" class="department-header">
               Department: <%= user.department %>
             </th>
           </tr>
@@ -264,12 +86,13 @@
             <th>Name</th>
             <th>Designation</th>
             <th>Email</th>
+          
             <th>Items Issued</th>
-            <th>Actions</th>
+            
           </tr>
         </thead>
         <tbody id="userListBody">
-          <tr><td colspan="6" class="loading-text">Loading user data...</td></tr>
+          <tr><td colspan="7" class="loading-text">Loading user data...</td></tr>
         </tbody>
       </table>
       <div id="userItemsSection" style="margin-top: 20px; display: none;">
@@ -296,29 +119,36 @@
               <option value="<%= type %>"><%= type %></option>
             <% }); %>
           </select>
-          <input type="date" id="dateFilterStock" class="date-filter">
-          <button class="filter-btn" data-target="stockListBody">🔍</button>
+          <select id="statusFilterStock" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Available">Available</option>
+            <option value="Issued">Issued</option>
+          </select>
+           <input type="date" id="dateFilterStock" class="date-filter">
+          <button class="filter-btn" data-target="stockListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="stockListBody">📊 Export</button>
         </div>
       </div>
       <table>
         <thead>
           <tr>
-            <th colspan="7" class="department-header">
+            <th colspan="8" class="department-header">
               Department: <%= user.department %>
             </th>
           </tr>
           <tr>
             <th>S.No</th>
             <th>Ledger No</th>
+            <th>name
+            </th>
             <th>Item Name</th>
             <th>Type</th>
             <th>Quantity</th>
-            <th>Issued To</th>
-            <th>Last Updated</th>
+            <th>Issue to</th>
           </tr>
         </thead>
         <tbody id="stockListBody">
-          <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
+          <tr><td colspan="8" class="loading-text">Loading stock data...</td></tr>
         </tbody>
       </table>
     </section>
@@ -336,14 +166,21 @@
               <option value="<%= type %>"><%= type %></option>
             <% }); %>
           </select>
+          <select id="priorityFilterRequests" class="type-filter">
+            <option value="">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
           <input type="date" id="dateFilterRequests" class="date-filter">
-          <button class="filter-btn" data-target="requestListBody">🔍</button>
+          <button class="filter-btn" data-target="requestListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="requestListBody">📊 Export</button>
         </div>
       </div>
       <table>
         <thead>
           <tr>
-            <th colspan="8" class="department-header">
+            <th colspan="9" class="department-header">
               Department: <%= user.department %>
             </th>
           </tr>
@@ -355,11 +192,12 @@
             <th>Type</th>
             <th>Quantity</th>
             <th>Request Date</th>
-            <th>Actions</th>
+            <th>Action</th>
+          
           </tr>
         </thead>
         <tbody id="requestListBody">
-          <tr><td colspan="8" class="loading-text">Loading requests...</td></tr>
+          <tr><td colspan="9" class="loading-text">Loading requests...</td></tr>
         </tbody>
       </table>
     </section>
@@ -377,14 +215,20 @@
               <option value="<%= type %>"><%= type %></option>
             <% }); %>
           </select>
+          <select id="statusFilterApproved" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Issued">Issued</option>
+            <option value="In Stock">In Stock</option>
+          </select>
           <input type="date" id="dateFilterApproved" class="date-filter">
-          <button class="filter-btn" data-target="approvedListBody">🔍</button>
+          <button class="filter-btn" data-target="approvedListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="approvedListBody">📊 Export</button>
         </div>
       </div>
       <table>
         <thead>
           <tr>
-            <th colspan="8" class="department-header">
+            <th colspan="9" class="department-header">
               Department: <%= user.department %>
             </th>
           </tr>
@@ -395,12 +239,13 @@
             <th>Type</th>
             <th>Quantity</th>
             <th>Issued To</th>
-            <th>Approval Date</th>
             <th>Status</th>
+            <th>Approval Date</th>
+            
           </tr>
         </thead>
         <tbody id="approvedListBody">
-          <tr><td colspan="8" class="loading-text">Loading approved items...</td></tr>
+          <tr><td colspan="9" class="loading-text">Loading approved items...</td></tr>
         </tbody>
       </table>
     </section>
@@ -418,14 +263,20 @@
               <option value="<%= type %>"><%= type %></option>
             <% }); %>
           </select>
+          <select id="statusFilterReturns" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+          </select>
           <input type="date" id="dateFilterReturns" class="date-filter">
-          <button class="filter-btn" data-target="returnListBody">🔍</button>
+          <button class="filter-btn" data-target="returnListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="returnListBody">📊 Export</button>
         </div>
       </div>
       <table>
         <thead>
           <tr>
-            <th colspan="9" class="department-header">
+            <th colspan="10" class="department-header">
               Department: <%= user.department %>
             </th>
           </tr>
@@ -442,7 +293,7 @@
           </tr>
         </thead>
         <tbody id="returnListBody">
-          <tr><td colspan="9" class="loading-text">Loading return requests...</td></tr>
+          <tr><td colspan="10" class="loading-text">Loading return requests...</td></tr>
         </tbody>
       </table>
     </section>
@@ -461,8 +312,14 @@
             <option>Return</option>
             <option>Alert</option>
           </select>
+          <select id="statusFilterNotifications" class="type-filter">
+            <option value="">All Statuses</option>
+            <option>Read</option>
+            <option>Unread</option>
+          </select>
           <input type="date" id="dateFilterNotifications" class="date-filter">
-          <button class="filter-btn" data-target="notificationListBody">🔍</button>
+          <button class="filter-btn" data-target="notificationListBody">🔍 Filter</button>
+          <button class="export-btn" data-target="notificationListBody">📊 Export</button>
         </div>
       </div>
       <table>
@@ -495,8 +352,14 @@
               <option value="<%= type %>"><%= type %></option>
             <% }); %>
           </select>
+          <select id="statusFilterMyStock" class="type-filter">
+            <option value="">All Statuses</option>
+            <option>Active</option>
+            <option>Returned</option>
+          </select>
           <input type="date" id="dateFilterMyStock" class="date-filter">
           <button class="filter-btn" data-target="myStockBody">🔍 Filter</button>
+          <button class="export-btn" data-target="myStockBody">📊 Export</button>
         </div>
       </div>
       <div class="table-container">
@@ -508,11 +371,12 @@
               <th>Item Name</th>
               <th>Type</th>
               <th>Quantity</th>
+            
               <th>Last Updated</th>
             </tr>
           </thead>
           <tbody id="myStockBody">
-            <tr><td colspan="6" class="loading-text">Loading stock data...</td></tr>
+            <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -548,6 +412,14 @@
             <label for="itemQty">Quantity:</label>
             <input type="number" name="qty" id="itemQty" min="1" required>
           </div>
+          <div class="form-row">
+            <label for="itemPriority">Priority:</label>
+            <select name="priority" id="itemPriority" required>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Submit Request</button>
             <button type="button" id="cancelRequest" class="btn btn-secondary">Cancel</button>
@@ -557,6 +429,12 @@
       <div class="filters">
         <div class="filter-group">
           <input type="text" id="searchMyRequests" placeholder="Search requests..." class="search-input">
+          <select id="typeFilterMyRequests" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
           <select id="statusFilterMyRequests" class="type-filter">
             <option value="">All Statuses</option>
             <option value="Pending">Pending</option>
@@ -565,6 +443,7 @@
           </select>
           <input type="date" id="dateFilterMyRequests" class="date-filter">
           <button class="filter-btn" data-target="myRequestsBody">🔍 Filter</button>
+          <button class="export-btn" data-target="myRequestsBody">📊 Export</button>
         </div>
       </div>
       <div class="table-container">
@@ -574,6 +453,7 @@
               <th>S.No</th>
               <th>Type</th>
               <th>Item Name</th>
+              
               <th>Request Date</th>
               <th>Qty</th>
               <th>Status</th>
@@ -581,7 +461,7 @@
             </tr>
           </thead>
           <tbody id="myRequestsBody">
-            <tr><td colspan="7" class="loading-text">Loading your requests...</td></tr>
+            <tr><td colspan="8" class="loading-text">Loading your requests...</td></tr>
           </tbody>
         </table>
       </div>
@@ -606,6 +486,25 @@
           <button type="button" id="btnApprove" class="btn-approve">Approve</button>
           <button type="button" id="btnReject" class="btn-reject">Reject</button>
           <button type="button" id="cancelApproval">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reject Modal -->
+  <div id="rejectModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRejectModal">&times;</span>
+      <h3>Reject Request</h3>
+      <form id="rejectForm">
+        <input type="hidden" id="rejectRequestId">
+        <div class="form-row">
+          <label for="rejectReason">Reason for rejection:</label>
+          <textarea id="rejectReason" rows="3" required></textarea>
+        </div>
+        <div class="form-buttons">
+          <button type="button" id="btnConfirmReject" class="btn-reject">Confirm Reject</button>
+          <button type="button" id="cancelReject">Cancel</button>
         </div>
       </form>
     </div>

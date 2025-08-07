@@ -570,3 +570,181 @@ button:hover {
     padding: 1.5rem;
   }
 }
+ .loading-text {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 20px;
+    }
+    .error-message {
+      color: #d32f2f;
+      padding: 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      margin: 10px 0;
+      display: none;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .status-badge.pending {
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+    .status-badge.completed {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-badge.approved {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-badge.rejected {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
+    /* Department Header */
+    .department-header {
+      background-color: #e3f2fd;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px;
+    }
+
+    /* Buttons */
+    .btn-approve {
+      background-color: #4caf50;
+      color: white;
+    }
+    .btn-reject {
+      background-color: #f44336;
+      color: white;
+    }
+    .btn-notify {
+      background-color: #ff9800;
+      color: white;
+    }
+    .action-btn {
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .return-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+    .cancel-btn {
+      background-color: #f44336;
+      color: white;
+    }
+    .mark-done-btn {
+      background-color: #4CAF50;
+      color: white;
+      margin-left: 10px;
+    }
+    .new-request-btn {
+      background-color: #4CAF50;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Request Form Styles */
+    .request-form-container {
+      background-color: #f5f5f5;
+      padding: 20px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .request-form-container.active {
+      display: block;
+    }
+    .form-row {
+      margin-bottom: 15px;
+    }
+    .form-row label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .form-row select, 
+    .form-row input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-actions {
+      margin-top: 15px;
+      text-align: right;
+    }
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-secondary {
+      background-color: #f44336;
+      color: white;
+    }
+
+    /* Notification Toast */
+    .notification-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+    .notification-toast.success {
+      background-color: #4CAF50;
+    }
+    .notification-toast.error {
+      background-color: #f44336;
+    }
+    .notification-toast.warning {
+      background-color: #FF9800;
+    }
+
+    /* Responsive Table */
+    @media (max-width: 768px) {
+      table {
+        width: 100%;
+        display: block;
+        overflow-x: auto;
+      }
+    }

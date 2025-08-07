@@ -284,31 +284,19 @@ async function populateItemNames(type) {
   if (!type) return;
 
   try {
-    // First try to fetch from API
     const response = await fetch(`/api/stock/type/${type}`);
-    if (response.ok) {
-      const items = await response.json();
-      items.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.name;
-        option.textContent = item.name;
-        itemNameSelect.appendChild(option);
-      });
-      return; // Exit if API call succeeds
-    }
-  } catch (error) {
-    console.error('API fetch error:', error);
-    // Continue to fallback if API fails
-  }
-
-  // Fallback to window.itemOptions if API fails or isn't available
-  if (window.itemOptions && window.itemOptions[type]) {
-    window.itemOptions[type].forEach(item => {
+    if (!response.ok) throw new Error('Failed to fetch items');
+    
+    const items = await response.json();
+    items.forEach(item => {
       const option = document.createElement('option');
-      option.value = item;
-      option.textContent = item;
+      option.value = item.name;
+      option.textContent = item.name;
       itemNameSelect.appendChild(option);
     });
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    showToast('Failed to load items', 'error');
   }
 }
 

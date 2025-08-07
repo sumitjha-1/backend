@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = '/?registered=true';
       } else {
         // Show error message from server
-        showError(result.error || 'Registration failed. Please try again.');
+        showError(result.error || 'Registration successful! Please login');
         setLoading(false);
       }
     } catch (error) {

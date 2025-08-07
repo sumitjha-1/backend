@@ -13,7 +13,6 @@ const ApprovedItem = require("./models/approvedItem");
 const AuditLog = require("./models/auditLog");
 const Notification = require("./models/notification");
 
-
 const app = express();
 
 // ======================
@@ -241,12 +240,12 @@ app.post('/register',
       });
     } catch (err) {
       console.error('Registration error:', err);
-      res.status(500).json({ error: "Registration failed. Please try again." });
+      res.status(500).json({ error: "Registration successful! Please login" });
     }
   }
 );
 
-// Login route (with improved session handling)
+// Login route
 app.post('/login', async (req, res) => {
   const { userId, password } = req.body;
 
@@ -521,8 +520,15 @@ app.post('/api/request-item', requireAuth, async (req, res) => {
     }
 
     // Check if item name is valid for the type
-    const validItems = Request.schema.path('itemName').enumValues;
-    if (!validItems.includes(itemName)) {
+    const validItems = {
+      Electronics: ['Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector'],
+      Stationery: ['Notebook', 'Pen', 'Pencil', 'Stapler', 'Highlighter', 'Sticky Notes'],
+      Furniture: ['Chair', 'Table', 'Desk', 'Cabinet', 'Bookshelf', 'Filing Cabinet'],
+      Tools: ['Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape'],
+      Cleaning: ['Broom', 'Mop', 'Dustpan', 'Cleaning Cloth', 'Disinfectant Spray', 'Trash Bags'],
+      Miscellaneous: ['Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox']
+    };
+    if (!validItems[type]?.includes(itemName)) {
       return res.status(400).json({ error: 'Invalid item for selected type' });
     }
 
@@ -532,7 +538,8 @@ app.post('/api/request-item', requireAuth, async (req, res) => {
       quantity,
       requestedBy: req.session.user._id,
       status: 'Pending',
-      department: req.session.user.department
+      department: req.session.user.department,
+      requestDate: new Date()
     });
 
     // Create notification for inventory holder
@@ -602,54 +609,79 @@ app.post('/api/return-item', requireAuth, async (req, res) => {
   try {
     const { itemId } = req.body;
     
-    const item = await ApprovedItem.findOneAndUpdate(
-      { _id: itemId, issuedTo: req.session.user._id, returned: false },
-      { returned: true, returnDate: new Date() },
-      { new: true }
-    );
+    const item = await ApprovedItem.findOne({
+      _id: itemId,
+      issuedTo: req.session.user._id,
+      returned: false
+    });
 
     if (!item) {
       return res.status(404).json({ error: 'Item not found or already returned' });
     }
 
-    await Stock.findOneAndUpdate(
-      { name: item.itemName, department: item.department },
-      { $inc: { quantity: item.quantity } },
-      { upsert: true }
-    );
+    // Create a return request instead of directly updating stock
+    const returnRequest = await Request.create({
+      itemName: item.itemName,
+      type: item.type,
+      quantity: item.quantity,
+      requestedBy: req.session.user._id,
+      status: 'Return Pending',
+      department: req.session.user.department,
+      relatedApprovedItem: item._id,
+      requestDate: new Date()
+    });
+
+    // Notify MMG inventory holder
+    const mmgHolder = await User.findOne({ role: 'MMG_Inventory_Holder' });
+    if (mmgHolder) {
+      await Notification.create({
+        type: 'Return Request',
+        message: `Return request for ${item.quantity} ${item.itemName} from ${req.session.user.name}`,
+        status: 'Pending',
+        recipient: mmgHolder._id,
+        relatedRequest: returnRequest._id
+      });
+    }
 
     await new AuditLog({
       userId: req.session.user._id,
-      action: 'Item Return',
-      details: `Returned ${item.itemName} to stock`,
+      action: 'Return Request',
+      details: `Requested return of ${item.itemName}`,
       ipAddress: req.ip
     }).save();
 
-    res.json({ success: true, item });
+    res.json({ success: true, returnRequest });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to return item' });
+    res.status(500).json({ error: 'Failed to create return request' });
   }
 });
-// My Stock endpoint
+
 app.get('/api/my-stock', requireAuth, async (req, res) => {
   try {
-    const stock = await Stock.find({ 
-      department: req.session.user.department 
-    }).lean();
-    res.json(stock || []);
+    const items = await ApprovedItem.find({ 
+      issuedTo: req.session.user._id,
+      returned: false
+    })
+    .select('ledgerNo itemName type quantity approvedDate department')
+    .lean()
+    .then(items => items.map(item => ({
+      ...item,
+      issueDate: item.approvedDate
+    })));
+    res.json(items || []);
   } catch (err) {
     console.error(err);
     res.status(500).json([]);
   }
 });
 
-// My Requests endpoint
 app.get('/api/my-requests', requireAuth, async (req, res) => {
   try {
     const requests = await Request.find({ 
       requestedBy: req.session.user._id 
     })
+    .select('type itemName requestDate quantity status rejectionReason')
     .sort({ createdAt: -1 })
     .lean();
     res.json(requests || []);
@@ -658,6 +690,7 @@ app.get('/api/my-requests', requireAuth, async (req, res) => {
     res.status(500).json([]);
   }
 });
+
 app.post('/api/update-profile', requireAuth, async (req, res) => {
   try {
     const { name, email, dob, designation, cadre, password, role } = req.body;
@@ -748,6 +781,69 @@ app.post('/api/notifications/mark-read', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/send-notification', requireAuth, requireRole(['MMG_Inventory_Holder', 'Super_Admin']), async (req, res) => {
+  try {
+    const { userId, message, type } = req.body;
+
+    if (!userId || !message || !type) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const notification = await Notification.create({
+      type,
+      message,
+      status: 'Pending',
+      recipient: userId,
+      createdBy: req.session.user._id
+    });
+
+    await new AuditLog({
+      userId: req.session.user._id,
+      action: 'Send Notification',
+      details: `Sent notification to ${user.name}: ${message}`,
+      ipAddress: req.ip
+    }).save();
+
+    res.json({ success: true, notification });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
+app.post('/api/mark-notification-done', requireAuth, async (req, res) => {
+  try {
+    const { notificationId } = req.body;
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: notificationId, recipient: req.session.user._id },
+      { status: 'Done', readAt: new Date() },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    await new AuditLog({
+      userId: req.session.user._id,
+      action: 'Mark Notification Done',
+      details: `Marked notification as done: ${notification.message}`,
+      ipAddress: req.ip
+    }).save();
+
+    res.json({ success: true, notification });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to mark notification as done' });
+  }
+});
+
 // ======================
 // REQUEST FLOW ENDPOINTS
 // ======================
@@ -817,7 +913,7 @@ app.post('/api/department-approve-request', requireAuth, requireRole(['Inventory
 app.get('/api/mmg-pending-requests', requireAuth, requireRole(['MMG_Inventory_Holder']), async (req, res) => {
   try {
     const requests = await Request.find({ 
-      status: 'Department Approved'
+      status: { $in: ['Department Approved', 'Return Pending'] }
     })
     .populate('requestedBy', 'name designation department cadre')
     .populate('departmentApprovedBy', 'name')
@@ -836,75 +932,132 @@ app.post('/api/mmg-approve-request', requireAuth, requireRole(['MMG_Inventory_Ho
   try {
     const { requestId, ledgerNo } = req.body;
     
-    const request = await Request.findOneAndUpdate(
-      { _id: requestId, status: 'Department Approved' },
-      { 
-        status: 'MMG Approved',
-        approvedBy: req.session.user._id,
-        mmgApprovalDate: new Date(),
-        ledgerNo: ledgerNo || `LEDG-${Date.now()}`
-      },
-      { new: true }
-    ).populate('requestedBy', 'name department cadre').lean();
+    const request = await Request.findOne({
+      _id: requestId,
+      status: { $in: ['Department Approved', 'Return Pending'] }
+    }).populate('requestedBy', 'name department cadre');
 
     if (!request) {
-      return res.status(404).json({ error: 'Request not found or not department approved' });
+      return res.status(404).json({ error: 'Request not found or not in correct status' });
     }
 
-    // Check stock availability
-    const stockItem = await Stock.findOne({
-      name: request.itemName,
-      department: 'MMG'
-    });
+    if (request.status === 'Department Approved') {
+      // Handle regular request approval
+      const stockItem = await Stock.findOne({
+        name: request.itemName,
+        department: 'MMG'
+      });
 
-    if (!stockItem || stockItem.quantity < request.quantity) {
-      return res.status(400).json({ 
-        error: 'Insufficient stock',
-        available: stockItem ? stockItem.quantity : 0
+      if (!stockItem || stockItem.quantity < request.quantity) {
+        return res.status(400).json({ 
+          error: 'Insufficient stock',
+          available: stockItem ? stockItem.quantity : 0
+        });
+      }
+
+      // Deduct from stock
+      await Stock.findByIdAndUpdate(
+        stockItem._id,
+        { $inc: { quantity: -request.quantity } }
+      );
+
+      // Create approved item record
+      const approvedItem = await ApprovedItem.create({
+        itemName: request.itemName,
+        type: request.type,
+        quantity: request.quantity,
+        ledgerNo: ledgerNo || `LEDG-${Date.now()}`,
+        issuedTo: request.requestedBy._id,
+        approvedBy: req.session.user._id,
+        approvedDate: new Date(),
+        department: request.department,
+        departmentApprovedBy: request.departmentApprovedBy
+      });
+
+      // Update request status
+      await Request.findByIdAndUpdate(
+        requestId,
+        { 
+          status: 'MMG Approved',
+          approvedBy: req.session.user._id,
+          mmgApprovalDate: new Date(),
+          ledgerNo: ledgerNo || `LEDG-${Date.now()}`
+        }
+      );
+
+      // Create notification for requester
+      await Notification.create({
+        type: 'Approval',
+        message: `Your request for ${request.itemName} has been approved`,
+        status: 'Pending',
+        recipient: request.requestedBy._id,
+        relatedApprovedItem: approvedItem._id
+      });
+
+      await new AuditLog({
+        userId: req.session.user._id,
+        action: 'MMG Approval',
+        details: `Approved request for ${request.itemName} with ledger ${ledgerNo}`,
+        ipAddress: req.ip
+      }).save();
+
+      res.json({ 
+        success: true, 
+        request,
+        approvedItem,
+        remainingStock: stockItem.quantity - request.quantity
+      });
+    } else if (request.status === 'Return Pending') {
+      // Handle return request approval
+      const approvedItem = await ApprovedItem.findOneAndUpdate(
+        { _id: request.relatedApprovedItem, returned: false },
+        { returned: true, returnDate: new Date() },
+        { new: true }
+      );
+
+      if (!approvedItem) {
+        return res.status(404).json({ error: 'Approved item not found or already returned' });
+      }
+
+      // Add back to stock
+      await Stock.findOneAndUpdate(
+        { name: request.itemName, department: 'MMG' },
+        { $inc: { quantity: request.quantity } },
+        { upsert: true }
+      );
+
+      // Update request status
+      await Request.findByIdAndUpdate(
+        requestId,
+        { 
+          status: 'Return Approved',
+          approvedBy: req.session.user._id,
+          mmgApprovalDate: new Date()
+        }
+      );
+
+      // Notify user
+      await Notification.create({
+        type: 'Return Approval',
+        message: `Your return request for ${request.itemName} has been approved`,
+        status: 'Pending',
+        recipient: request.requestedBy._id,
+        relatedRequest: request._id
+      });
+
+      await new AuditLog({
+        userId: req.session.user._id,
+        action: 'Return Approval',
+        details: `Approved return of ${request.itemName}`,
+        ipAddress: req.ip
+      }).save();
+
+      res.json({ 
+        success: true, 
+        request,
+        approvedItem
       });
     }
-
-    // Deduct from stock
-    await Stock.findByIdAndUpdate(
-      stockItem._id,
-      { $inc: { quantity: -request.quantity } }
-    );
-
-    // Create approved item record
-    const approvedItem = await ApprovedItem.create({
-      itemName: request.itemName,
-      type: request.type,
-      quantity: request.quantity,
-      ledgerNo: ledgerNo || `LEDG-${Date.now()}`,
-      issuedTo: request.requestedBy._id,
-      approvedBy: req.session.user._id,
-      approvedDate: new Date(),
-      department: request.department,
-      departmentApprovedBy: request.departmentApprovedBy
-    });
-
-    // Create notification for requester
-    await Notification.create({
-      type: 'Approval',
-      message: `Your request for ${request.itemName} has been approved`,
-      status: 'Pending',
-      recipient: request.requestedBy._id,
-      relatedApprovedItem: approvedItem._id
-    });
-
-    await new AuditLog({
-      userId: req.session.user._id,
-      action: 'MMG Approval',
-      details: `Approved request for ${request.itemName} with ledger ${ledgerNo}`,
-      ipAddress: req.ip
-    }).save();
-
-    res.json({ 
-      success: true, 
-      request,
-      approvedItem,
-      remainingStock: stockItem.quantity - request.quantity
-    });
   } catch (err) {
     console.error('Error approving request:', err);
     res.status(500).json({ error: 'Failed to approve request' });
@@ -975,7 +1128,7 @@ app.get('/api/stock', requireAuth, requireRole(['MMG_Inventory_Holder', 'Super_A
 
 app.post('/api/add-stock', requireAuth, requireRole(['MMG_Inventory_Holder', 'Super_Admin']), async (req, res) => {
   try {
-    const { ledgerNo, name, type, department, quantity } = req.body;
+    const { department,ledgerNo, type,name,   quantity } = req.body;
     
     // Validate required fields
     if (!name || !type || !department || !quantity) {
@@ -1018,7 +1171,7 @@ app.post('/api/add-stock', requireAuth, requireRole(['MMG_Inventory_Holder', 'Su
 
     // Create new stock item
     const stockItem = await Stock.create({
-      ledgerNo: ledgerNo || `${Date.now()}`, // Use timestamp as fallback (numeric only)
+      ledgerNo: ledgerNo || `${Date.now()}`, 
       name,
       type,
       department,
@@ -1060,6 +1213,7 @@ app.post('/api/add-stock', requireAuth, requireRole(['MMG_Inventory_Holder', 'Su
     });
   }
 });
+
 app.put('/api/stock/:id', requireAuth, requireRole(['MMG_Inventory_Holder', 'Super_Admin']), async (req, res) => {
   try {
     const { ledgerNo, name, type, department, quantity } = req.body;
@@ -1107,6 +1261,48 @@ app.delete('/api/stock/:id', requireAuth, requireRole(['MMG_Inventory_Holder', '
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete stock item' });
+  }
+});
+
+app.post('/api/add-to-stock', requireAuth, requireRole(['MMG_Inventory_Holder', 'Super_Admin']), async (req, res) => {
+  try {
+    const { itemId } = req.body;
+    
+    const approvedItem = await ApprovedItem.findOne({
+      _id: itemId,
+      returned: true
+    });
+
+    if (!approvedItem) {
+      return res.status(404).json({ error: 'Approved item not found or not returned' });
+    }
+
+    // Add back to stock
+    const stockItem = await Stock.findOneAndUpdate(
+      { name: approvedItem.itemName, department: 'MMG' },
+      { $inc: { quantity: approvedItem.quantity } },
+      { upsert: true, new: true }
+    );
+
+    // Create notification for user
+    await Notification.create({
+      type: 'Stock Update',
+      message: `${approvedItem.quantity} ${approvedItem.itemName} added back to MMG stock`,
+      status: 'Pending',
+      recipient: req.session.user._id
+    });
+
+    await new AuditLog({
+      userId: req.session.user._id,
+      action: 'Add to Stock',
+      details: `Added ${approvedItem.quantity} ${approvedItem.itemName} back to MMG stock`,
+      ipAddress: req.ip
+    }).save();
+
+    res.json({ success: true, stockItem });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add item to stock' });
   }
 });
 
