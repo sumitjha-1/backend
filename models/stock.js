@@ -1,3 +1,4 @@
+// stock.js
 const mongoose = require('mongoose');
 
 const stockSchema = new mongoose.Schema({
@@ -17,23 +18,25 @@ const stockSchema = new mongoose.Schema({
     required: true,
     enum: [
       // Electronics
-      'Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector',
+      'Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector', 'Calculator',
       // Stationery
       'Notebook', 'Pen', 'Pencil', 'Stapler', 'Highlighter', 'Sticky Notes',
       // Furniture
       'Chair', 'Table', 'Desk', 'Cabinet', 'Bookshelf', 'Filing Cabinet',
       // Tools
-      'Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape',
+      'Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape', 'Microscope',
       // Cleaning
       'Broom', 'Mop', 'Dustpan', 'Cleaning Cloth', 'Disinfectant Spray', 'Trash Bags',
       // Miscellaneous
-      'Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox'
+      'Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox',
+      // Lab Equipment
+      'Test Kit'
     ]
   },
   type: { 
     type: String, 
     required: true,
-    enum: ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous']
+    enum: ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous', 'Lab Equipment']
   },
   quantity: { type: Number, required: true, min: 0 },
   department: { 
@@ -46,19 +49,22 @@ const stockSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-// Add validation to ensure name matches type
+// Update validation to match all items
 stockSchema.pre('validate', function(next) {
   const itemCategories = {
-    Electronics: ['Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector'],
+    Electronics: ['Laptop', 'Keyboard', 'Mouse', 'Monitor', 'Printer', 'Projector', 'Calculator'],
     Stationery: ['Notebook', 'Pen', 'Pencil', 'Stapler', 'Highlighter', 'Sticky Notes'],
     Furniture: ['Chair', 'Table', 'Desk', 'Cabinet', 'Bookshelf', 'Filing Cabinet'],
-    Tools: ['Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape'],
+    Tools: ['Screwdriver Set', 'Hammer', 'Wrench', 'Pliers', 'Drill Machine', 'Measuring Tape', 'Microscope'],
     Cleaning: ['Broom', 'Mop', 'Dustpan', 'Cleaning Cloth', 'Disinfectant Spray', 'Trash Bags'],
-    Miscellaneous: ['Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox']
+    Miscellaneous: ['Whiteboard', 'Bulletin Board', 'First Aid Kit', 'Fire Extinguisher', 'Step Ladder', 'Toolbox'],
+    'Lab Equipment': ['Test Kit']
   };
 
-  if (!itemCategories[this.type].includes(this.name)) {
-    this.invalidate('name', `Item name must match the selected type (${this.type})`);
+  if (this.type && this.name && itemCategories[this.type]) {
+    if (!itemCategories[this.type].includes(this.name)) {
+      this.invalidate('name', `"${this.name}" is not a valid item for type "${this.type}". Valid items are: ${itemCategories[this.type].join(', ')}`);
+    }
   }
   next();
 });
