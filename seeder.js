@@ -100,42 +100,42 @@ async function seedDatabase() {
     // Create stock items
     const stockItems = await Stock.create([
       {
-        ledgerNo: "LEDG-IT-001",
+        ledgerNo: "001",
         name: "Laptop",
         type: "Electronics",
         quantity: 15,
         department: "IT"
       },
       {
-        ledgerNo: "LEDG-MMG-001",
+        ledgerNo: "004",
         name: "Microscope",
         type: "Tools",
         quantity: 8,
         department: "MMG"
       },
       {
-        ledgerNo: "LEDG-ADMIN-001",
+        ledgerNo: "005",
         name: "Printer",
         type: "Electronics",
         quantity: 5,
         department: "ADMIN"
       },
       {
-        ledgerNo: "LEDG-IT-002",
+        ledgerNo: "002",
         name: "Keyboard",
         type: "Electronics",
         quantity: 20,
         department: "IT"
       },
       {
-        ledgerNo: "LEDG-MMG-002",
+        ledgerNo: "003",
         name: "Test Kit",
         type: "Lab Equipment",
         quantity: 15,
         
       },
       {
-        ledgerNo: "LEDG-FIN-001",
+        ledgerNo: "006",
         name: "Calculator",
         type: "Electronics",
         quantity: 10,
@@ -179,7 +179,7 @@ async function seedDatabase() {
         itemName: "Printer",
         type: "Electronics",
         quantity: 1,
-        ledgerNo: "LEDG-APP-001",
+        ledgerNo: "009",
         issuedTo: users[0]._id, // Inventory Holder
         approvedBy: users[2]._id, // Super Admin
         approvedDate: new Date(),
@@ -189,7 +189,7 @@ async function seedDatabase() {
         itemName: "Keyboard",
         type: "Electronics",
         quantity: 2,
-        ledgerNo: "LEDG-APP-002",
+        ledgerNo: "008",
         issuedTo: users[3]._id, // Regular User
         approvedBy: users[0]._id, // Inventory Holder
         approvedDate: new Date(),
