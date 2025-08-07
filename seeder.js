@@ -133,6 +133,7 @@ async function seedDatabase() {
         name: "Test Kit",
         type: "Lab Equipment",
         quantity: 15,
+        department: "FINANCE"
         
       },
       {
