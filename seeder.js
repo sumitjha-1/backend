@@ -5,11 +5,12 @@ const Stock = require("./models/stock");
 const Request = require("./models/request");
 const ApprovedItem = require("./models/approvedItem");
 const AuditLog = require("./models/auditLog");
+require("dotenv").config();
 
 async function seedDatabase() {
   try {
     // Connect to MongoDB
-    await mongoose.connect("mongodb://127.0.0.1:27017/inventorySystem");
+    await mongoose.connect( process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/inventorySystem");
     console.log("MongoDB connected");
 
     // Clear existing data
