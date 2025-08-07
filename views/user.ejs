@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= user.name %> Dashboard</title>
+  <link rel="stylesheet" href="/stylesheet/user.css" />
+  <style>
+    /* Updated styles for better UI/UX */
+    .notification-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+    .notification-toast.success {
+      background-color: #4CAF50;
+    }
+    .notification-toast.error {
+      background-color: #f44336;
+    }
+    .notification-toast.warning {
+      background-color: #FF9800;
+    }
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-pending {
+      background-color: #FFF3E0;
+      color: #E65100;
+    }
+    .status-approved {
+      background-color: #E8F5E9;
+      color: #2E7D32;
+    }
+    .status-rejected {
+      background-color: #FFEBEE;
+      color: #C62828;
+    }
+    .status-returned {
+      background-color: #E3F2FD;
+      color: #1565C0;
+    }
+    .loading-text {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 20px;
+    }
+    .action-btn {
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .return-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+    .cancel-btn {
+      background-color: #f44336;
+      color: white;
+    }
+    .mark-done-btn {
+      background-color: #4CAF50;
+      color: white;
+      margin-left: 10px;
+    }
+    /* Modal form improvements */
+    #requestFormModal .modal-content {
+      max-width: 500px;
+    }
+    #requestItemForm select,
+    #requestItemForm input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+    }
+    .form-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    /* Responsive table styles */
+    @media (max-width: 768px) {
+      table {
+        width: 100%;
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body data-user="<%= JSON.stringify(user) %>">
+  <header class="navbar">
+    <button id="hamburger">☰</button>
+    <span class="welcome-msg">Welcome, <%= user.name %></span>
+    <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" id="profileBtn" class="avatar" alt="Profile" />
+  </header>
+
+  <aside id="sidebar" class="sidebar">
+    <h4 class="nav-title">Navigation</h4>
+    <ul>
+      <li data-target="myItems" class="active">My Items</li>
+      <li data-target="requestList">Request List</li>
+      <li data-target="approvedItems">Approved Items</li>
+      <li data-target="returnList">Return List</li>
+      <li data-target="notifications">Notifications</li>
+    </ul>
+  </aside>
+
+  <aside id="profilePanel" class="profile-panel">
+    <span class="close-btn" id="closeProfile">×</span>
+    <div class="profile-header">
+      <h3 class="profile-title">My Profile</h3>
+    </div>
+    <div class="profile-fields">
+      <div class="text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="avatar-large" alt="Profile Picture" />
+        <h4 class="user-name"><%= user.name %></h4>
+        <p class="user-title"><%= user.designation %>, <%= user.department %></p>
+      </div>
+      <label>Name:<input type="text" id="nameInput" disabled value="<%= user.name %>" /></label>
+      <label>Email:<input type="email" id="emailInput" disabled value="<%= user.email %>" /></label>
+      <label>DOB:<input type="date" id="dobInput" disabled value="<%= user.dob ? user.dob.toISOString().split('T')[0] : '' %>" /></label>
+      <label>Designation:<input type="text" id="designationInput" disabled value="<%= user.designation %>" /></label>
+      <label>Department:<input type="text" id="departmentInput" disabled value="<%= user.department %>" /></label>
+      <hr />
+      <label>Change Password:<input type="password" id="passwordInput" disabled placeholder="New Password" /></label>
+    </div>
+    <div class="profile-actions">
+      <button id="editProfile">Edit</button>
+      <button id="logoutBtn" class="logout">Logout</button>
+      <button id="saveProfile" style="display:none;">Save</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- My Items Section -->
+    <section id="myItems" class="tab-content active">
+      <div class="section-header">
+        <h2>My Items</h2>
+       
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchMyItems" placeholder="Search items..." class="search-input" />
+          <select id="typeFilterMyItems" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+          <input type="date" id="dateFilterMyItems" class="date-filter" />
+          <button class="filter-btn" data-target="myItemsBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Ledger No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Issue Date</th>
+              <th>Qty</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="myItemsBody">
+            <tr><td colspan="7" class="loading-text">Loading your items...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Request List Section -->
+    <section id="requestList" class="tab-content">
+      <div class="section-header">
+        <h2>Request List</h2>
+        <div class="section-actions">
+          <button id="toggleRequestForm" class="new-request-btn">+ New Request</button>
+          
+        </div>
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchRequests" placeholder="Search requests..." class="search-input" />
+          <select id="typeFilterRequests" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+          <select id="statusFilterRequests" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <input type="date" id="dateFilterRequests" class="date-filter" />
+          <button class="filter-btn" data-target="requestListBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Request Date</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="requestListBody">
+            <tr><td colspan="7" class="loading-text">Loading your requests...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Approved Items Section -->
+    <section id="approvedItems" class="tab-content">
+      <div class="section-header">
+        <h2>Approved Items</h2>
+        
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchApproved" placeholder="Search approved items..." class="search-input" />
+          <select id="typeFilterApproved" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+          <input type="date" id="dateFilterApproved" class="date-filter" />
+          <button class="filter-btn" data-target="approvedItemsBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Ledger No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Approved Date</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+          <tbody id="approvedItemsBody">
+            <tr><td colspan="6" class="loading-text">Loading approved items...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Return List Section -->
+    <section id="returnList" class="tab-content">
+      <div class="section-header">
+        <h2>Return List</h2>
+        
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchReturns" placeholder="Search returns..." class="search-input" />
+          <select id="typeFilterReturns" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+          <input type="date" id="dateFilterReturns" class="date-filter" />
+          <button class="filter-btn" data-target="returnListBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Ledger No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Return Date</th>
+              <th>Qty</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="returnListBody">
+            <tr><td colspan="7" class="loading-text">Loading return requests...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Notifications Section -->
+    <section id="notifications" class="tab-content">
+      <div class="section-header">
+        <h2>Notifications</h2>
+        
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNotifications" placeholder="Search notifications..." class="search-input" />
+          <select id="typeFilterNotifications" class="type-filter">
+            <option value="">All Types</option>
+            <option value="Request">Request</option>
+            <option value="Return">Return</option>
+            <option value="System">System</option>
+            <option value="Approval">Approval</option>
+          </select>
+          <input type="date" id="dateFilterNotifications" class="date-filter" />
+          <button class="filter-btn" data-target="notificationList">🔍 Filter</button>
+        </div>
+      </div>
+      <ul id="notificationList">
+        <li class="loading-text">Loading notifications...</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- Request Form Modal -->
+  <div id="requestFormModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRequestForm">&times;</span>
+      <h3>Request New Item</h3>
+      <form id="requestItemForm">
+        <label>Type: 
+          <select name="type" id="itemType" required>
+            <option value="">--Select Type--</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+        </label>
+  <label>Item Name: 
+    <select name="item" id="itemName" required>
+      <option value="">--Select Type First--</option>
+    </select>
+  </label>
+  <label>Quantity: 
+    <input type="number" name="qty" id="itemQty" min="1" required />
+    <small class="hint">Minimum: 1</small>
+  </label>
+  <div class="form-buttons">
+    <button type="submit">Submit Request</button>
+    <button type="button" id="cancelRequest">Cancel</button>
+  </div>
+</form>
+
+  <!-- Notification Toast -->
+  <div id="notificationToast" class="notification-toast"></div>
+ 
+  <script src="/javascript/user.js"></script>
+</body>
+</html>

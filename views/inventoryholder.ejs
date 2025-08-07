@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= user.name %> - <%= user.department %> Inventory</title>
+  <link rel="stylesheet" href="/stylesheet/inventoryholder.css">
+  <style>
+    /* Loading and Error Styles */
+    .loading-text {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 20px;
+    }
+    .error-message {
+      color: #d32f2f;
+      padding: 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      margin: 10px 0;
+      display: none;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .status-badge.pending {
+      background-color: #fff3e0;
+      color: #e65100;
+    }
+    .status-badge.completed {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-badge.approved {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-badge.rejected {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
+    /* Department Header */
+    .department-header {
+      background-color: #e3f2fd;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px;
+    }
+
+    /* Buttons */
+    .btn-approve {
+      background-color: #4caf50;
+      color: white;
+    }
+    .btn-reject {
+      background-color: #f44336;
+      color: white;
+    }
+    .btn-notify {
+      background-color: #ff9800;
+      color: white;
+    }
+    .action-btn {
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .return-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+    .cancel-btn {
+      background-color: #f44336;
+      color: white;
+    }
+    .mark-done-btn {
+      background-color: #4CAF50;
+      color: white;
+      margin-left: 10px;
+    }
+    .new-request-btn {
+      background-color: #4CAF50;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Request Form Styles */
+    .request-form-container {
+      background-color: #f5f5f5;
+      padding: 20px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .request-form-container.active {
+      display: block;
+    }
+    .form-row {
+      margin-bottom: 15px;
+    }
+    .form-row label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .form-row select, 
+    .form-row input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-actions {
+      margin-top: 15px;
+      text-align: right;
+    }
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-secondary {
+      background-color: #f44336;
+      color: white;
+    }
+
+    /* Notification Toast */
+    .notification-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+    .notification-toast.success {
+      background-color: #4CAF50;
+    }
+    .notification-toast.error {
+      background-color: #f44336;
+    }
+    .notification-toast.warning {
+      background-color: #FF9800;
+    }
+
+    /* Responsive Table */
+    @media (max-width: 768px) {
+      table {
+        width: 100%;
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <button id="hamburger">☰</button>
+    <span class="welcome-msg">Welcome, <%= user.name %></span>
+    <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" id="profileBtn" class="avatar">
+  </header>
+
+  <aside id="sidebar" class="sidebar">
+    <h4 class="nav-title">Navigation</h4>
+    <ul>
+      <li data-target="userList" class="active">User List</li>
+      <li data-target="stockList">Stock List</li>
+      <li data-target="myStock">My Stock</li>
+      <li data-target="myRequests">My Requests</li>
+      <li data-target="requestList">Request List</li>
+      <li data-target="approvedList">Approved List</li>
+      <li data-target="returnList">Return List</li>
+      <li data-target="notificationList">Notifications</li>
+      
+    </ul>
+  </aside>
+
+  <aside id="profilePanel" class="profile-panel">
+    <span class="close-btn" id="closeProfile">×</span>
+    <div class="profile-header">
+      <h3 class="profile-title">My Profile</h3>
+    </div>
+    <div class="profile-fields">
+      <div class="text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="avatar-large">
+        <h4 class="user-name"><%= user.name %></h4>
+        <p class="user-title"><%= user.designation %>, <%= user.department %></p>
+      </div>
+      <label>Name:<input type="text" id="nameInput" disabled value="<%= user.name %>"></label>
+      <label>Email:<input type="email" id="emailInput" disabled value="<%= user.email %>"></label>
+      <label>DOB:<input type="date" id="dobInput" disabled value="<%= user.dob ? user.dob.toISOString().split('T')[0] : '' %>"></label>
+      <label>Designation:<input type="text" id="designationInput" disabled value="<%= user.designation %>"></label>
+      <label>Department:<input type="text" id="departmentInput" disabled value="<%= user.department %>"></label>
+      <hr>
+      <label>Change Password:<input type="password" id="passwordInput" disabled placeholder="New Password"></label>
+    </div>
+    <div class="profile-actions">
+      <button id="editProfile">Edit</button>
+      <button id="logoutBtn" class="logout">Logout</button>
+      <button id="saveProfile" style="display:none;">Save</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- User List Section -->
+    <section id="userList" class="tab-content active">
+      <h2><%= user.department %> Users</h2>
+      <div id="userListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchUsers" placeholder="Search users..." class="search-input">
+          <select id="desgFilterUsers" class="type-filter">
+            <option value="">All Designations</option>
+            <% ['Scientist B', 'Technician', 'Engineer', 'Manager', 'Assistant'].forEach(desg => { %>
+              <option value="<%= desg %>"><%= desg %></option>
+            <% }); %>
+          </select>
+          <button class="filter-btn" data-target="userListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="6" class="department-header">
+              Department: <%= user.department %>
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Name</th>
+            <th>Designation</th>
+            <th>Email</th>
+            <th>Items Issued</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="userListBody">
+          <tr><td colspan="6" class="loading-text">Loading user data...</td></tr>
+        </tbody>
+      </table>
+      <div id="userItemsSection" style="margin-top: 20px; display: none;">
+        <h3>Items Issued to <span id="userNameHeading"></span></h3>
+        <table>
+          <thead>
+            <tr><th>S.No</th><th>Item Name</th><th>Type</th><th>Issue Date</th><th>Quantity</th><th>Return</th></tr>
+          </thead>
+          <tbody id="userItemsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Stock List Section -->
+    <section id="stockList" class="tab-content">
+      <h2><%= user.department %> Stock</h2>
+      <div id="stockListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchStock" placeholder="Search stock..." class="search-input">
+          <select id="typeFilterStock" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterStock" class="date-filter">
+          <button class="filter-btn" data-target="stockListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="7" class="department-header">
+              Department: <%= user.department %>
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item Name</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Issued To</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody id="stockListBody">
+          <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Request List Section -->
+    <section id="requestList" class="tab-content">
+      <h2>Pending Requests</h2>
+      <div id="requestListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchRequests" placeholder="Search requests..." class="search-input">
+          <select id="typeFilterRequests" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterRequests" class="date-filter">
+          <button class="filter-btn" data-target="requestListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="8" class="department-header">
+              Department: <%= user.department %>
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Requested By</th>
+            <th>Designation</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Request Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="requestListBody">
+          <tr><td colspan="8" class="loading-text">Loading requests...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Approved List Section -->
+    <section id="approvedList" class="tab-content">
+      <h2>Approved Items</h2>
+      <div id="approvedListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchApproved" placeholder="Search approved..." class="search-input">
+          <select id="typeFilterApproved" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterApproved" class="date-filter">
+          <button class="filter-btn" data-target="approvedListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="8" class="department-header">
+              Department: <%= user.department %>
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Issued To</th>
+            <th>Approval Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="approvedListBody">
+          <tr><td colspan="8" class="loading-text">Loading approved items...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Return List Section -->
+    <section id="returnList" class="tab-content">
+      <h2>Return Requests</h2>
+      <div id="returnListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchReturns" placeholder="Search returns..." class="search-input">
+          <select id="typeFilterReturns" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterReturns" class="date-filter">
+          <button class="filter-btn" data-target="returnListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="9" class="department-header">
+              Department: <%= user.department %>
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Returned By</th>
+            <th>Designation</th>
+            <th>Return Date</th>
+            <th>Notify</th>
+            <th>Return to MMG</th>
+          </tr>
+        </thead>
+        <tbody id="returnListBody">
+          <tr><td colspan="9" class="loading-text">Loading return requests...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Notification List Section -->
+    <section id="notificationList" class="tab-content">
+      <h2>Notifications</h2>
+      <div id="notificationListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNotifications" placeholder="Search notifications..." class="search-input">
+          <select id="typeFilterNotifications" class="type-filter">
+            <option value="">All Types</option>
+            <option>Request</option>
+            <option>Approval</option>
+            <option>Return</option>
+            <option>Alert</option>
+          </select>
+          <input type="date" id="dateFilterNotifications" class="date-filter">
+          <button class="filter-btn" data-target="notificationListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Type</th>
+            <th>Message</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="notificationListBody">
+          <tr><td colspan="6" class="loading-text">Loading notifications...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- My Stock Section -->
+    <section id="myStock" class="tab-content">
+      <h2>My Stock</h2>
+      <div id="myStockError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchMyStock" placeholder="Search stock..." class="search-input">
+          <select id="typeFilterMyStock" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterMyStock" class="date-filter">
+          <button class="filter-btn" data-target="myStockBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Ledger No</th>
+              <th>Item Name</th>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>Last Updated</th>
+            </tr>
+          </thead>
+          <tbody id="myStockBody">
+            <tr><td colspan="6" class="loading-text">Loading stock data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- My Requests Section -->
+    <section id="myRequests" class="tab-content">
+      <div class="section-header">
+        <h2>My Requests</h2>
+        <div class="section-actions">
+          <button id="toggleRequestForm" class="new-request-btn">+ New Request</button>
+        </div>
+      </div>
+      <div id="requestFormContainer" class="request-form-container">
+        <h3>Request New Item</h3>
+        <form id="requestItemForm">
+          <div class="form-row">
+            <label for="itemType">Type:</label>
+            <select name="type" id="itemType" required>
+              <option value="">--Select Type--</option>
+              <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+                <option value="<%= type %>"><%= type %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="itemName">Item Name:</label>
+            <select name="item" id="itemName" required>
+              <option value="">--Select Type First--</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="itemQty">Quantity:</label>
+            <input type="number" name="qty" id="itemQty" min="1" required>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+            <button type="button" id="cancelRequest" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchMyRequests" placeholder="Search requests..." class="search-input">
+          <select id="statusFilterMyRequests" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <input type="date" id="dateFilterMyRequests" class="date-filter">
+          <button class="filter-btn" data-target="myRequestsBody">🔍 Filter</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Request Date</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="myRequestsBody">
+            <tr><td colspan="7" class="loading-text">Loading your requests...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Request Approval Modal -->
+  <div id="approvalModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeApprovalModal">&times;</span>
+      <h3>Process Request</h3>
+      <div id="approvalDetails">
+        <p><strong>Item:</strong> <span id="approvalItem"></span></p>
+        <p><strong>Requested By:</strong> <span id="approvalRequester"></span></p>
+        <p><strong>Quantity:</strong> <span id="approvalQty"></span></p>
+      </div>
+      <form id="approvalForm">
+        <input type="hidden" id="approvalRequestId">
+        <label for="approvalNotes">Notes:</label>
+        <textarea id="approvalNotes" rows="3"></textarea>
+        <div class="form-buttons">
+          <button type="button" id="btnApprove" class="btn-approve">Approve</button>
+          <button type="button" id="btnReject" class="btn-reject">Reject</button>
+          <button type="button" id="cancelApproval">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="notificationToast" class="notification-toast"></div>
+
+  <script src="/javascript/inventoryholder.js"></script>
+</body>
+</html>

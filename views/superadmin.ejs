@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= user.name %> - Super Admin Dashboard</title>
+  <link rel="stylesheet" href="/stylesheet/superadmin.css">
+  
+</head>
+<body>
+  <!-- Hidden fields for current user data -->
+  <input type="hidden" id="currentUserId" value="<%= user._id %>">
+  <input type="hidden" id="currentUserName" value="<%= user.name %>">
+  <input type="hidden" id="currentUserEmail" value="<%= user.email %>">
+  <input type="hidden" id="currentUserRole" value="<%= user.role %>">
+
+  <header class="navbar">
+    <button id="hamburger">☰</button>
+    <span class="welcome-msg">Welcome, <%= user.name %></span>
+    <div class="notification-icon" id="notificationBtn">
+      <span class="badge" id="notificationCount">0</span>
+      🔔
+    </div>
+    <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" id="profileBtn" class="avatar">
+  </header>
+
+  <aside id="sidebar" class="sidebar">
+    <h4 class="nav-title">Navigation</h4>
+    <ul>
+      <li data-target="userList">User Management</li>
+      <li data-target="stockList">Global Stock</li>
+      <li data-target="myStockList">My Stock</li>
+      <li data-target="myRequestList">My Requests</li>
+      <li data-target="requestList">All Requests</li>
+      <li data-target="approvedList">Approved Items</li>
+      <li data-target="notificationList">Notifications</li>
+    </ul>
+  </aside>
+
+  <aside id="profilePanel" class="profile-panel">
+    <span class="close-btn" id="closeProfile">×</span>
+    <div class="profile-header">
+      <h3 class="profile-title">My Profile</h3>
+    </div>
+    <div class="profile-fields">
+      <div class="text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="avatar-large">
+        <h4 class="user-name"><%= user.name %></h4>
+        <p class="user-title"><%= user.designation %>, <%= user.department %></p>
+      </div>
+      <label>Name:<input type="text" id="nameInput" disabled value="<%= user.name %>"></label>
+      <label>Email:<input type="email" id="emailInput" disabled value="<%= user.email %>"></label>
+      <label>DOB:<input type="date" id="dobInput" disabled value="<%= user.dob ? user.dob.toISOString().split('T')[0] : '' %>"></label>
+      <label>Designation:<input type="text" id="designationInput" disabled value="<%= user.designation %>"></label>
+      <label>Department:<input type="text" id="departmentInput" disabled value="<%= user.department %>"></label>
+      <hr>
+      <label>Change Password:<input type="password" id="passwordInput" disabled placeholder="New Password"></label>
+    </div>
+    <div class="profile-actions">
+      <button id="editProfile">Edit</button>
+      <button id="logoutBtn" class="logout">Logout</button>
+      <button id="saveProfile" style="display:none;">Save</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- User Management Section -->
+    <section id="userList" class="tab-content">
+      <h2>User Management</h2>
+      <div id="userListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNameUsers" placeholder="Search by name..." class="search-input">
+          <select id="deptFilterUsers" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['DIR SECT', 'FSEG', 'IT', 'QRS', 'PCM', 'PSEG', 'MMG', 'ADMIN', 'FINANCE', 'MT', 'SECURITY', 'TFA', 'CAL', 'SARC', 'ESRG', 'FC&HB'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <select id="roleFilterUsers" class="type-filter">
+            <option value="">All Roles</option>
+            <option value="User">User</option>
+            <option value="Inventory_Holder">Inventory Holder</option>
+            <option value="MMG_Inventory_Holder">MMG Holder</option>
+            <option value="Super_Admin">Super Admin</option>
+          </select>
+          <button class="filter-btn" id="filterUsersBtn">Filter</button>
+          <button class="download-btn" id="downloadUsersBtn">Download Excel</button>
+          <button class="clear-filter-btn">Clear Filters</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Email ID</th>
+            <th>Role Status</th>
+            <th>Actions</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody id="userListBody">
+          <tr><td colspan="8" class="loading-text">Loading user data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <!-- My Stock Section -->
+<section id="myStockList" class="tab-content">
+  <h2>My Stock</h2>
+  <div id="myStockListError" class="error-message"></div>
+  <div class="filters">
+    <div class="filter-group">
+      <input type="text" id="searchNameMyStock" placeholder="Search by item..." class="search-input">
+      <select id="typeFilterMyStock" class="type-filter">
+        <option value="">All Types</option>
+        <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+          <option value="<%= type %>"><%= type %></option>
+        <% }); %>
+      </select>
+      <input type="date" id="dateFilterMyStock" class="date-filter" placeholder="Filter by date">
+      <button class="filter-btn" id="filterMyStockBtn">Filter</button>
+      <button class="download-btn" id="downloadMyStockBtn">Download Excel</button>
+      <button class="clear-filter-btn">Clear Filters</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>S.No</th>
+        <th>Item Name</th>
+        <th>Type</th>
+        <th>Ledger No</th>
+        <th>Quantity</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody id="myStockListBody">
+      <tr><td colspan="6" class="loading-text">Loading my stock data...</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- My Requests Section -->
+<section id="myRequestList" class="tab-content">
+  <h2>My Requests</h2>
+  <div id="myRequestListError" class="error-message"></div>
+  <div class="filters">
+    <div class="filter-group">
+      <input type="text" id="searchNameMyRequests" placeholder="Search by item..." class="search-input">
+      <select id="typeFilterMyRequests" class="type-filter">
+        <option value="">All Types</option>
+        <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+          <option value="<%= type %>"><%= type %></option>
+        <% }); %>
+      </select>
+      <select id="statusFilterMyRequests" class="type-filter">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Department Approved">Approved by Department</option>
+        <option value="MMG Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+      <input type="date" id="dateFilterMyRequests" class="date-filter" placeholder="Filter by date">
+      <button class="filter-btn" id="filterMyRequestsBtn">Filter</button>
+      <button class="download-btn" id="downloadMyRequestsBtn">Download Excel</button>
+      <button class="clear-filter-btn">Clear Filters</button>
+      <button class="request-item-btn" id="requestItemBtn">Request Item</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>S.No</th>
+        <th>Item</th>
+        <th>Type</th>
+        <th>Quantity</th>
+        <th>Status</th>
+        <th>Date</th>
+        
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="myRequestListBody">
+      <tr><td colspan="8" class="loading-text">Loading my requests...</td></tr>
+    </tbody>
+  </table>
+</section>
+
+    <!-- Global Stock Section -->
+    <section id="stockList" class="tab-content">
+      <h2>Global Stock Overview</h2>
+      <div id="stockListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNameStock" placeholder="Search by item..." class="search-input">
+          <select id="typeFilterStock" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <select id="deptFilterStock" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['DIR SECT', 'FSEG', 'IT', 'QRS', 'PCM', 'PSEG', 'MMG', 'ADMIN', 'FINANCE', 'MT', 'SECURITY', 'TFA', 'CAL', 'SARC', 'ESRG', 'FC&HB'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterStock" class="date-filter" placeholder="Filter by date">
+          <button class="filter-btn" id="filterStockBtn">Filter</button>
+          <button class="download-btn" id="downloadStockBtn">Download Excel</button>
+          <button class="clear-filter-btn">Clear Filters</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Item Name</th>
+            <th>Type</th>
+            <th>Ledger No</th>
+            <th>Department</th>
+            <th>Quantity</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="stockListBody">
+          <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- All Requests Section -->
+    <section id="requestList" class="tab-content">
+      <h2>All Requests</h2>
+      <div id="requestListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNameRequests" placeholder="Search by item..." class="search-input">
+          <select id="typeFilterRequests" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <select id="deptFilterRequests" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['DIR SECT', 'FSEG', 'IT', 'QRS', 'PCM', 'PSEG', 'MMG', 'ADMIN', 'FINANCE', 'MT', 'SECURITY', 'TFA', 'CAL', 'SARC', 'ESRG', 'FC&HB'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <select id="statusFilterRequests" class="type-filter">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Department Approved">Approved by Department</option>
+            <option value="MMG Approved">Approved</option>
+          </select>
+          <input type="date" id="dateFilterRequests" class="date-filter" placeholder="Filter by date">
+          <button class="filter-btn" id="filterRequestsBtn">Filter</button>
+          <button class="download-btn" id="downloadRequestsBtn">Download Excel</button>
+          <button class="clear-filter-btn">Clear Filters</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Requested By</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Ledger No</th>
+          </tr>
+        </thead>
+        <tbody id="requestListBody">
+          <tr><td colspan="9" class="loading-text">Loading requests...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Approved Items Section -->
+    <section id="approvedList" class="tab-content">
+      <h2>Approved Items</h2>
+      <div id="approvedListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNameApproved" placeholder="Search by item..." class="search-input">
+          <select id="typeFilterApproved" class="type-filter">
+            <option value="">All Types</option>
+            <% ['Electronics', 'Stationery', 'Furniture', 'Tools', 'Cleaning', 'Miscellaneous'].forEach(type => { %>
+              <option value="<%= type %>"><%= type %></option>
+            <% }); %>
+          </select>
+          <select id="deptFilterApproved" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['DIR SECT', 'FSEG', 'IT', 'QRS', 'PCM', 'PSEG', 'MMG', 'ADMIN', 'FINANCE', 'MT', 'SECURITY', 'TFA', 'CAL', 'SARC', 'ESRG', 'FC&HB'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterApproved" class="date-filter" placeholder="Filter by date">
+          <button class="filter-btn" id="filterApprovedBtn">Filter</button>
+          <button class="download-btn" id="downloadApprovedBtn">Download Excel</button>
+          <button class="clear-filter-btn">Clear Filters</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Issued To</th>
+            <th>Department</th>
+            <th>Approved By</th>
+            <th>Date</th>
+            <th>Ledger No</th>
+          </tr>
+        </thead>
+        <tbody id="approvedListBody">
+          <tr><td colspan="9" class="loading-text">Loading approved items...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Notification Section -->
+    <section id="notificationList" class="tab-content active">
+      <h2>Notifications</h2>
+      <div id="notificationListError" class="error-message"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Message</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="notificationListBody">
+          <tr><td colspan="4" class="loading-text">Loading notifications...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Role Change Modal -->
+  <div id="roleModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRoleModal">&times;</span>
+      <h3>Change User Role</h3>
+      <form id="roleForm">
+        <input type="hidden" id="roleUserId" name="userId">
+        <div class="user-info">
+          <p><strong>Name:</strong> <span id="roleUserName"></span></p>
+          <p><strong>Current Role:</strong> <span id="currentRole"></span></p>
+        </div>
+        <label>Select New Role:
+          <select name="role" id="roleSelect" required>
+            <option value="">--Select Role--</option>
+            <option value="User">User</option>
+            <option value="Inventory_Holder">Inventory Holder</option>
+            <option value="MMG_Inventory_Holder">MMG Holder</option>
+            <option value="Super_Admin">Super Admin</option>
+          </select>
+        </label>
+        <div class="form-buttons">
+          <button type="button" id="saveRoleBtn">Save Changes</button>
+          <button type="button" id="cancelRole">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete User Confirmation Modal -->
+  <div id="deleteUserModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeDeleteModal">&times;</span>
+      <h3>Confirm User Deletion</h3>
+      <p>Are you sure you want to delete <span id="deleteUserName"></span>?</p>
+      <input type="hidden" id="deleteUserId">
+      <div class="form-buttons">
+        <button type="button" id="confirmDeleteBtn" class="delete-btn">Delete</button>
+        <button type="button" id="cancelDeleteBtn" class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <!-- Request Form Modal -->
+<div id="requestFormModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" id="closeRequestForm">&times;</span>
+    <h3>Request New Item</h3>
+    <form id="requestItemForm">
+      <label>Type: 
+        <select name="type" id="itemType" required>
+          <option value="">--Select Type--</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Stationery">Stationery</option>
+          <option value="Furniture">Furniture</option>
+          <option value="Tools">Tools</option>
+          <option value="Cleaning">Cleaning</option>
+          <option value="Miscellaneous">Miscellaneous</option>
+        </select>
+      </label>
+      <label>Item Name: 
+        <select name="item" id="itemName" required>
+          <option value="">--Select Type First--</option>
+        </select>
+      </label>
+      <label>Quantity: 
+        <input type="number" name="qty" id="itemQty" min="1" required>
+        <small class="hint">Minimum: 1</small>
+      </label>
+      <div class="form-buttons">
+        <button type="submit">Submit Request</button>
+        <button type="button" id="cancelRequest">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Notification Toast -->
+<div id="notificationToast" class="notification-toast"></div>
+
+  <script src="/javascript/superadmin.js"></script>
+</body>
+</html>

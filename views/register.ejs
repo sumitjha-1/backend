@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Inventory Management – Register</title>
+  <link rel="stylesheet" href="/stylesheet/register.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="auth-container">
+    <h1>Create Account</h1>
+    <h3>Register for inventory access</h3>
+    
+    <form id="registerForm">
+      <div class="form-group">
+        <h4>Name</h4>
+        <input type="text" name="name" id="regName" placeholder="Name" required>
+      </div>
+
+      <div class="form-group">
+        <h4>User ID</h4>
+        <input type="text" name="userId" id="regUserId" placeholder="User ID" required>
+      </div>
+
+      <div class="form-group">
+        <h4>Phone Number</h4>
+        <input type="tel" name="mobile_number" id="phone" placeholder="Phone Number" required>
+      </div>
+
+      <div class="form-group">
+        <h4>Email</h4>
+        <input type="email" name="email" id="regEmail" placeholder="Email" required>
+      </div>
+
+      <div class="form-group">
+        <h4>Gender</h4>
+        <div class="radio-group">
+          <label>
+            <input type="radio" name="gender" value="M" checked> Male
+          </label>
+          <label>
+            <input type="radio" name="gender" value="F"> Female
+          </label>
+          <label>
+            <input type="radio" name="gender" value="Other"> Other
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <h4>Cadre</h4>
+        <select name="cadre" id="regCadre" required>
+          <option value="">Select Cadre</option>
+          <option value="Scientist">Scientist</option>
+          <option value="Technical_Officer">Technical Officer</option>
+          <option value="Account_Officer">Account Officer</option>
+          <option value="Chief_Admin_Officer">Chief Admin Officer</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <h4>Designation</h4>
+        <input type="text" name="designation" id="regDesignation" placeholder="Designation" required>
+      </div>
+
+      <div class="form-group">
+        <h4>Department</h4>
+        <select name="department" id="regDepartment" required>
+          <option value="">Select Department</option>
+          <option>DIR SECT</option>
+          <option>FSEG</option>
+          <option>IT</option>
+          <option>QRS</option>
+          <option>PCM</option>
+          <option>PSEG</option>
+          <option>MMG</option>
+          <option>Admin</option>
+          <option>Finance</option>
+          <option>MT</option>
+          <option>Security</option>
+          <option>TFA</option>
+          <option>CAL</option>
+          <option>SARC</option>
+          <option>ESRG</option>
+          <option>FC&amp;HB</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <h4>Password</h4>
+        <input type="password" name="password" id="regPassword" placeholder="Password" required>
+        <p class="field-description">Minimum 8 characters</p>
+      </div>
+
+      <div class="form-group">
+        <h4>Confirm Password</h4>
+        <input type="password" name="confirmPassword" id="regConfirmPassword" placeholder="Confirm Password" required>
+      </div>
+
+      <div class="form-group full-width">
+        <div id="error-message" class="error-message"></div>
+      </div>
+
+      <button type="submit" class="register-btn">
+        <span class="btn-text">Register</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </form>
+
+    <p class="login-link">Already have an account? <a href="/">Login here</a></p>
+  </div>
+  <script src="/javascript/register.js"></script>
+</body>
+</html>

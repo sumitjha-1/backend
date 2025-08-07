@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= currentUser.name %> - MMG Inventory Holder</title>
+  <link rel="stylesheet" href="/stylesheet/mmgholder.css" />
+  <style>
+    /* Additional styles for enhanced UI */
+    .notification-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .notification-toast.success {
+      background-color: #4CAF50;
+    }
+    .notification-toast.error {
+      background-color: #f44336;
+    }
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .status-pending {
+      background-color: #FFF3E0;
+      color: #E65100;
+    }
+    .status-approved {
+      background-color: #E8F5E9;
+      color: #2E7D32;
+    }
+    .status-rejected {
+      background-color: #FFEBEE;
+      color: #C62828;
+    }
+    .loading-text {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 20px;
+    }
+    .btn-approve {
+      background-color: #4CAF50;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-reject {
+      background-color: #f44336;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-notify {
+      background-color: #FF9800;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-return {
+      background-color: #2196F3;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+    }
+    .department-header {
+      background-color: #e3f2fd;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px;
+    }
+    .request-info {
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+    }
+    .request-info p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <button id="hamburger">☰</button>
+    <span class="welcome-msg">Welcome, <%= currentUser.name %></span>
+    <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" id="profileBtn" class="avatar" />
+  </header>
+
+  <aside id="sidebar" class="sidebar">
+    <h4 class="nav-title">Navigation</h4>
+    <ul>
+      <li data-target="stockList" class="active">Stock List</li>
+      <li data-target="requestList">Request List</li>
+      <li data-target="approvedList">Approved List</li>
+      <li data-target="returnList">Return List</li>
+      <li data-target="notificationList">Notifications</li>
+    </ul>
+  </aside>
+
+  <aside id="profilePanel" class="profile-panel">
+    <span class="close-btn" id="closeProfile">×</span>
+    <div class="profile-header">
+      <h3 class="profile-title">My Profile</h3>
+    </div>
+    <div class="profile-fields">
+      <div class="text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="avatar-large" />
+        <h4 class="user-name"><%= currentUser.name %></h4>
+        <p class="user-title"><%= currentUser.designation %>, <%= currentUser.department %></p>
+      </div>
+      <label>Name:<input type="text" id="nameInput" disabled value="<%= currentUser.name %>" /></label>
+      <label>Email:<input type="email" id="emailInput" disabled value="<%= currentUser.email %>" /></label>
+      <label>DOB:<input type="date" id="dobInput" disabled value="<%= currentUser.dob ? currentUser.dob.toISOString().split('T')[0] : '' %>" /></label>
+      <label>Designation:<input type="text" id="designationInput" disabled value="<%= currentUser.designation %>" /></label>
+      <label>Department:<input type="text" id="departmentInput" disabled value="<%= currentUser.department %>" /></label>
+      <hr />
+      <label>Change Password:<input type="password" id="passwordInput" disabled placeholder="New Password" /></label>
+    </div>
+    <div class="profile-actions">
+      <button id="editProfile">Edit</button>
+      <button id="logoutBtn" class="logout">Logout</button>
+      <button id="saveProfile" style="display:none;">Save</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- Stock List Section -->
+    <section id="stockList" class="tab-content active">
+      <h2>MMG Stock List</h2>
+      <button id="toggleStockForm" class="new-request-btn">+ Add Stock</button>
+      <div id="stockListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchStock" placeholder="Search stock..." class="search-input" />
+          <select id="typeFilterStock" class="type-filter">
+            <option value="">All Types</option>
+            <option>Electronics</option>
+            <option>Stationery</option>
+            <option>Furniture</option>
+            <option>Tools</option>
+            <option>Cleaning</option>
+            <option>Miscellaneous</option>
+          </select>
+          <input type="date" id="dateFilterStock" class="date-filter" />
+          <button class="filter-btn" data-target="stockListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="7" class="department-header">
+              Department: MMG
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item Name</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Last Updated</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stockListBody">
+          <tr><td colspan="7" class="loading-text">Loading stock data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Request List Section -->
+    <section id="requestList" class="tab-content">
+      <h2>Pending Requests</h2>
+      <div id="requestListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchRequests" placeholder="Search requests..." class="search-input" />
+          <select id="typeFilterRequests" class="type-filter">
+            <option value="">All Types</option>
+            <option>Electronics</option>
+            <option>Stationery</option>
+            <option>Furniture</option>
+            <option>Tools</option>
+            <option>Cleaning</option>
+            <option>Miscellaneous</option>
+          </select>
+          <select id="deptFilterRequests" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['IT', 'HR', 'Finance', 'Operations', 'R&D'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterRequests" class="date-filter" />
+          <button class="filter-btn" data-target="requestListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="8" class="department-header">
+              MMG Inventory Requests
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Requested By</th>
+            <th>Department</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Request Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="requestListBody">
+          <tr><td colspan="8" class="loading-text">Loading request data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Approved List Section -->
+    <section id="approvedList" class="tab-content">
+      <h2>Approved Items</h2>
+      <div id="approvedListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchApproved" placeholder="Search approved..." class="search-input" />
+          <select id="typeFilterApproved" class="type-filter">
+            <option value="">All Types</option>
+            <option>Electronics</option>
+            <option>Stationery</option>
+            <option>Furniture</option>
+            <option>Tools</option>
+            <option>Cleaning</option>
+            <option>Miscellaneous</option>
+          </select>
+          <select id="deptFilterApproved" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['IT', 'HR', 'Finance', 'Operations', 'R&D'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterApproved" class="date-filter" />
+          <button class="filter-btn" data-target="approvedListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="8" class="department-header">
+              Approved Inventory Items
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Issued To</th>
+            <th>Department</th>
+            <th>Approval Date</th>
+          </tr>
+        </thead>
+        <tbody id="approvedListBody">
+          <tr><td colspan="8" class="loading-text">Loading approved items...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Return List Section -->
+    <section id="returnList" class="tab-content">
+      <h2>Return Requests</h2>
+      <div id="returnListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchReturns" placeholder="Search returns..." class="search-input" />
+          <select id="typeFilterReturns" class="type-filter">
+            <option value="">All Types</option>
+            <option>Electronics</option>
+            <option>Stationery</option>
+            <option>Furniture</option>
+            <option>Tools</option>
+            <option>Cleaning</option>
+            <option>Miscellaneous</option>
+          </select>
+          <select id="deptFilterReturns" class="type-filter">
+            <option value="">All Departments</option>
+            <% ['IT', 'HR', 'Finance', 'Operations', 'R&D'].forEach(dept => { %>
+              <option value="<%= dept %>"><%= dept %></option>
+            <% }); %>
+          </select>
+          <input type="date" id="dateFilterReturns" class="date-filter" />
+          <button class="filter-btn" data-target="returnListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th colspan="9" class="department-header">
+              Return Requests
+            </th>
+          </tr>
+          <tr>
+            <th>S.No</th>
+            <th>Ledger No</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Returned By</th>
+            <th>Department</th>
+            <th>Return Date</th>
+            <th>Notify</th>
+            <th>Add to Stock</th>
+          </tr>
+        </thead>
+        <tbody id="returnListBody">
+          <tr><td colspan="9" class="loading-text">Loading return data...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Notification List Section -->
+    <section id="notificationList" class="tab-content">
+      <h2>Notifications</h2>
+      <div id="notificationListError" class="error-message"></div>
+      <div class="filters">
+        <div class="filter-group">
+          <input type="text" id="searchNotifications" placeholder="Search notifications..." class="search-input" />
+          <select id="typeFilterNotifications" class="type-filter">
+            <option value="">All Types</option>
+            <option>Request</option>
+            <option>Approval</option>
+            <option>Return</option>
+            <option>Alert</option>
+          </select>
+          <input type="date" id="dateFilterNotifications" class="date-filter" />
+          <button class="filter-btn" data-target="notificationListBody">🔍</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Type</th>
+            <th>Message</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="notificationListBody">
+          <tr><td colspan="6" class="loading-text">Loading notifications...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Stock Form Modal -->
+  <div id="stockFormModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeStockForm">&times;</span>
+      <h3>Add/Update Stock</h3>
+      <form id="stockItemForm">
+        <label>Ledger No: 
+  <input type="text" name="ledger" required 
+         pattern="\d+" 
+         title="Numbers only (e.g., 123456)" />
+</label><label>Type:
+          <select name="type" id="stockType" required>
+            <option value="">--Select--</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Stationery">Stationery</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Tools">Tools</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+        </label>
+        <label>Item Name: 
+          <select name="item" id="stockItemName" required>
+            <option value="">--Select Type First--</option>
+          </select>
+        </label>
+        <label>Quantity: <input type="number" name="quantity" min="1" required /></label>
+        <div class="form-buttons">
+          <button type="submit">Submit</button>
+          <button type="button" id="cancelStock">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Approve Modal -->
+  <div id="approveModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeApproveModal">&times;</span>
+      <h3>Approve Request</h3>
+      <form id="approveForm">
+        <input type="hidden" id="approveRequestId" name="requestId">
+        <div class="request-info">
+          <p><strong>Item:</strong> <span id="approveItemName"></span></p>
+          <p><strong>Requested By:</strong> <span id="approveRequester"></span></p>
+          <p><strong>Department:</strong> <span id="approveDepartment"></span></p>
+          <p><strong>Quantity:</strong> <span id="approveQuantity"></span></p>
+        </div>
+        <label>Ledger No: <input type="text" name="ledgerNo" required /></label>
+        <div class="form-buttons">
+          <button type="submit" class="btn-approve">Approve</button>
+          <button type="button" id="cancelApprove" class="btn-reject">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="notificationToast" class="notification-toast"></div>
+
+  <script>
+    // Pass user data to JavaScript
+    window.userData = {
+      _id: '<%= currentUser._id %>',
+      userId: '<%= currentUser.userId %>',
+      name: '<%= currentUser.name %>',
+      email: '<%= currentUser.email %>',
+      designation: '<%= currentUser.designation %>',
+      department: '<%= currentUser.department %>',
+      role: '<%= currentUser.role %>'
+    };
+  </script>
+  <script src="/javascript/mmgholder.js"></script>
+</body>
+</html>

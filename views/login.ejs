@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Inventory Management</title>
+  <link rel="stylesheet" href="/stylesheet/login.css" />
+  <style>
+    .alert-error {
+      color: #dc3545;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid transparent;
+      border-radius: 0.25rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container"> 
+    <h1>Inventory Management</h1>
+    <h3>Sign in to your account</h3>
+    
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-error">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form id="loginForm" method="POST" action="/login">
+      <div class="form-group">
+        <h4>User ID</h4>
+        <input type="text" name="userId" id="loginUserId" 
+               placeholder="Enter your user ID" 
+               value="<%= typeof userId !== 'undefined' ? userId : '' %>"
+               required>
+      </div>
+      
+      <div class="form-group">
+        <h4>Password</h4>
+        <input type="password" name="password" id="loginPassword" 
+               placeholder="Enter your password" required>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <button type="submit" class="signin-btn">Sign In</button>
+    </form>
+    
+    <p class="register-link">Don't have an account? <a href="/register">Register here</a></p>
+  </div>
+
+  <script src="/javascript/login.js"></script> 
+</body>
+</html>
