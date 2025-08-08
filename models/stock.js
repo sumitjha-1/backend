@@ -2,17 +2,16 @@
 const mongoose = require('mongoose');
 
 const stockSchema = new mongoose.Schema({
-  ledgerNo: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    validate: {
-      validator: function(v) {
-        return /^\d+$/.test(v); 
-      },
-      message: props => `${props.value} is not a valid ledger number (numbers only)`
-    }
-  },
+  ledgerNo: {
+  type: String,
+  required: true,
+  validate: {
+    validator: function(v) {
+      return /^[A-Za-z0-9-]+$/.test(v); // allows letters, numbers, and dashes
+    },
+    message: props => `${props.value} is not a valid ledger number`
+  }
+},
   name: { 
     type: String, 
     required: true,
